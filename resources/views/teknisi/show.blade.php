@@ -63,11 +63,11 @@
                     default => 'bg-slate-100 text-slate-800 border-slate-200'
                 };
             @endphp
-            <div class="text-right">
-                <span class="inline-block rounded-full border px-3 py-1 text-xs font-extrabold {{ $statusColor }}">
+            <div class="text-right flex-shrink-0">
+                <span class="inline-block rounded-full border px-3 py-1 text-xs font-extrabold whitespace-nowrap {{ $statusColor }}">
                     {{ $pemesanan->status_pengerjaan }}
                 </span>
-                <span class="block text-[11px] text-slate-500 mt-1">
+                <span class="block text-[11px] text-slate-500 mt-1 whitespace-nowrap">
                     Pembayaran: <b class="{{ $pemesanan->status_pembayaran === 'Lunas' ? 'text-emerald-700' : 'text-amber-700' }}">{{ $pemesanan->status_pembayaran }}</b>
                 </span>
             </div>
@@ -157,7 +157,7 @@
         <div class="rounded-2xl border {{ $tahapAktif === 1 ? 'border-2 border-emerald-500 bg-emerald-50/20' : 'border-slate-200 bg-slate-50/60' }} p-4 space-y-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-full {{ $latestBuktiSurvei?->status_verifikasi === 'Disetujui' ? 'bg-emerald-600 text-white' : ($tahapAktif === 1 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-xl {{ $latestBuktiSurvei?->status_verifikasi === 'Disetujui' ? 'bg-emerald-600 text-white' : ($tahapAktif === 1 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs shadow-sm">
                         1
                     </span>
                     <h4 class="text-sm font-bold text-slate-800">Foto Kehadiran Survei</h4>
@@ -239,7 +239,7 @@
         <div class="rounded-2xl border {{ $tahapAktif === 2 ? 'border-2 border-emerald-500 bg-emerald-50/20' : 'border-slate-200 bg-slate-50/60' }} p-4 space-y-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-full {{ $latestSurvei?->status_verifikasi === 'Disetujui' ? 'bg-emerald-600 text-white' : ($tahapAktif === 2 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-xl {{ $latestSurvei?->status_verifikasi === 'Disetujui' ? 'bg-emerald-600 text-white' : ($tahapAktif === 2 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs shadow-sm">
                         2
                     </span>
                     <h4 class="text-sm font-bold text-slate-800">Hasil Survei & Jadwal Pengerjaan</h4>
@@ -298,18 +298,156 @@
                         <span class="block mt-1">Estimasi awal: <b>Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }}</b>. Masukkan nominal harga yang disepakati dengan pelanggan saat survei di lapangan.</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Tgl Pengerjaan *</label>
-                            <input type="date" name="tgl_pengerjaan_diajukan" min="{{ date('Y-m-d') }}" required
-                                value="{{ old('tgl_pengerjaan_diajukan', $latestSurvei?->tgl_pengerjaan_diajukan) }}"
-                                class="w-full rounded-xl border-slate-300 px-3.5 py-2.5 text-xs text-slate-800 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+                    @php
+                        $rawTgl = old('tgl_pengerjaan_diajukan', $latestSurvei?->tgl_pengerjaan_diajukan ?: date('Y-m-d', strtotime('+1 day')));
+                        try {
+                            $defaultTglCarbon = \Carbon\Carbon::parse($rawTgl);
+                        } catch (\Exception $e) {
+                            $defaultTglCarbon = \Carbon\Carbon::now()->addDay();
+                            $rawTgl = $defaultTglCarbon->format('Y-m-d');
+                        }
+
+                        $rawJam = old('jam_pengerjaan_diajukan', $latestSurvei?->jam_pengerjaan_diajukan ?: '09:00');
+                        $parts = explode(':', $rawJam);
+                        $defaultHour = str_pad($parts[0] ?? '09', 2, '0', STR_PAD_LEFT);
+                        $defaultMinute = str_pad($parts[1] ?? '00', 2, '0', STR_PAD_LEFT);
+                    @endphp
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {{-- Custom Date Picker --}}
+                        <div class="relative" id="tgl_pengerjaan_container">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                                Tgl Pengerjaan <span class="text-rose-500">*</span>
+                            </label>
+
+                            <button type="button" id="tgl_pengerjaan_trigger"
+                                    class="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                                <span id="display_tgl_pengerjaan_btn" class="font-extrabold text-slate-900 text-xs truncate mr-1">
+                                    {{ $defaultTglCarbon->translatedFormat('l, d F Y') }}
+                                </span>
+                                <span class="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg transition">
+                                    <span>Pilih Tanggal</span>
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </span>
+                            </button>
+
+                            {{-- Hidden Input untuk backend --}}
+                            <input type="hidden" name="tgl_pengerjaan_diajukan" id="tgl_pengerjaan_diajukan" value="{{ $rawTgl }}">
+
+                            {{-- Popover Kalender Kustom --}}
+                            <div id="tgl_pengerjaan_popover" class="hidden absolute left-0 right-0 sm:right-auto sm:w-80 z-40 mt-1.5 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl">
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
+                                    <button type="button" id="btn_prev_month_teknisi" class="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                                    </button>
+                                    <span id="calendar_month_year_teknisi" class="text-xs font-bold text-slate-800">
+                                        {{ $defaultTglCarbon->translatedFormat('F Y') }}
+                                    </span>
+                                    <button type="button" id="btn_next_month_teknisi" class="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
+
+                                <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
+                                    <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+                                </div>
+
+                                <div id="calendar_days_grid_teknisi" class="grid grid-cols-7 gap-1 text-center">
+                                    {{-- Generated by JS --}}
+                                </div>
+
+                                <div class="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between">
+                                    <span id="calendar_selected_preview_teknisi" class="text-[11px] font-bold text-emerald-700 truncate pr-1">
+                                        {{ $defaultTglCarbon->translatedFormat('d M Y') }}
+                                    </span>
+                                    <button type="button" id="btn_confirm_tgl_teknisi"
+                                            class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-lg shadow-sm transition">
+                                        Selesai
+                                    </button>
+                                </div>
+                            </div>
+
+                            @error('tgl_pengerjaan_diajukan')
+                                <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Jam Pengerjaan *</label>
-                            <input type="time" name="jam_pengerjaan_diajukan" required
-                                value="{{ old('jam_pengerjaan_diajukan', $latestSurvei?->jam_pengerjaan_diajukan ?? '09:00') }}"
-                                class="w-full rounded-xl border-slate-300 px-3.5 py-2.5 text-xs text-slate-800 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+
+                        {{-- Custom Time Picker (24 Jam WITA) --}}
+                        <div class="relative" id="jam_pengerjaan_container">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                                Jam Pengerjaan <span class="text-rose-500">*</span>
+                            </label>
+
+                            <button type="button" id="jam_pengerjaan_trigger"
+                                    class="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                                <span id="display_jam_pengerjaan_btn" class="font-extrabold text-slate-900 text-xs">
+                                    {{ $defaultHour }}:{{ $defaultMinute }} WITA
+                                </span>
+                                <span class="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg transition">
+                                    <span>Pilih Jam</span>
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </span>
+                            </button>
+
+                            {{-- Hidden Input untuk backend --}}
+                            <input type="hidden" name="jam_pengerjaan_diajukan" id="jam_pengerjaan_diajukan" value="{{ $defaultHour }}:{{ $defaultMinute }}">
+
+                            {{-- Popover Dropdown Scrollable Time Picker --}}
+                            <div id="jam_pengerjaan_popover" class="hidden absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-72 z-40 mt-1.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
+                                    <span class="text-[11px] font-bold text-slate-800">
+                                        Gulir / Pilih Waktu (24 Jam)
+                                    </span>
+                                    <span class="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">WITA</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2.5 text-center">
+                                    {{-- Kolom Scroll Jam --}}
+                                    <div>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Jam</span>
+                                        <div id="teknisi_scroll_jam" class="h-40 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
+                                            @for ($h = 6; $h <= 22; $h++)
+                                                @php $hVal = sprintf('%02d', $h); @endphp
+                                                <button type="button" data-hour="{{ $hVal }}"
+                                                        class="teknisi-hour-opt w-full py-1 text-xs font-bold rounded-lg transition {{ $defaultHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
+                                                    {{ $hVal }}:00
+                                                </button>
+                                            @endfor
+                                        </div>
+                                    </div>
+
+                                    {{-- Kolom Scroll Menit --}}
+                                    <div>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Menit</span>
+                                        <div id="teknisi_scroll_menit" class="h-40 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
+                                            @foreach (['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'] as $mVal)
+                                                <button type="button" data-minute="{{ $mVal }}"
+                                                        class="teknisi-minute-opt w-full py-1 text-xs font-bold rounded-lg transition {{ $defaultMinute === $mVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
+                                                    :{{ $mVal }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between">
+                                    <div class="text-[11px] text-slate-500">
+                                        Terpilih: <strong id="teknisi_popover_preview_time" class="text-emerald-700 font-extrabold">{{ $defaultHour }}:{{ $defaultMinute }} WITA</strong>
+                                    </div>
+                                    <button type="button" id="btn_confirm_jam_teknisi"
+                                            class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-lg shadow-sm transition">
+                                        Selesai
+                                    </button>
+                                </div>
+                            </div>
+
+                            @error('jam_pengerjaan_diajukan')
+                                <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -342,7 +480,7 @@
         <div class="rounded-2xl border {{ $tahapAktif === 3 ? 'border-2 border-emerald-500 bg-emerald-50/20' : 'border-slate-200 bg-slate-50/60' }} p-4 space-y-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-full {{ $latestBuktiPengerjaan?->status_verifikasi === 'Disetujui' || $pemesanan->status_pengerjaan === 'On-Going' ? 'bg-emerald-600 text-white' : ($tahapAktif === 3 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-xl {{ $latestBuktiPengerjaan?->status_verifikasi === 'Disetujui' || $pemesanan->status_pengerjaan === 'On-Going' ? 'bg-emerald-600 text-white' : ($tahapAktif === 3 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs shadow-sm">
                         3
                     </span>
                     <h4 class="text-sm font-bold text-slate-800">Mulai Pengerjaan (Treatment)</h4>
@@ -422,7 +560,7 @@
         <div class="rounded-2xl border {{ $tahapAktif === 4 ? 'border-2 border-emerald-500 bg-emerald-50/20' : 'border-slate-200 bg-slate-50/60' }} p-4 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div class="flex items-center gap-2">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-full {{ ($latestWo?->status_verifikasi === 'Disetujui' && $latestBuktiBayar?->status_verifikasi === 'Disetujui') ? 'bg-emerald-600 text-white' : ($tahapAktif === 4 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-xl {{ ($latestWo?->status_verifikasi === 'Disetujui' && $latestBuktiBayar?->status_verifikasi === 'Disetujui') ? 'bg-emerald-600 text-white' : ($tahapAktif === 4 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs shadow-sm">
                         4
                     </span>
                     <h4 class="text-sm font-bold text-slate-800">Selesai Kerja: WO & Bukti Bayar</h4>
@@ -571,18 +709,25 @@
         {{-- ========================================================================= --}}
         {{-- TAHAP 5: PEKERJAAN SELESAI TOTAL (DONE & LUNAS) --}}
         {{-- ========================================================================= --}}
-        <div class="rounded-2xl border {{ $pemesanan->status_pengerjaan === 'Done' ? 'border-2 border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50/60' }} p-4">
-            <div class="flex items-center gap-3">
-                <span class="flex h-8 w-8 items-center justify-center rounded-full {{ $pemesanan->status_pengerjaan === 'Done' ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-600' }} font-black text-sm">
-                    5
-                </span>
-                <div>
-                    <h4 class="text-sm font-black text-slate-900">Pekerjaan Selesai & Lunas</h4>
-                    <p class="text-xs text-slate-600 mt-0.5">
-                        Otomatis aktif ketika <b>Dokumen WO</b> dan <b>Bukti Pembayaran</b> keduanya telah disetujui admin.
-                    </p>
+        <div class="rounded-2xl border {{ $pemesanan->status_pengerjaan === 'Done' ? 'border-2 border-emerald-500 bg-emerald-50/20' : 'border-slate-200 bg-slate-50/60' }} p-4 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-xl {{ $pemesanan->status_pengerjaan === 'Done' ? 'bg-emerald-600 text-white' : ($tahapAktif === 5 ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-600') }} font-bold text-xs shadow-sm">
+                        5
+                    </span>
+                    <h4 class="text-sm font-bold text-slate-800">Pekerjaan Selesai & Lunas</h4>
                 </div>
+                @if ($pemesanan->status_pengerjaan === 'Done')
+                    <span class="rounded-full border border-emerald-200 bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold">
+                        Selesai
+                    </span>
+                @else
+                    <span class="text-[11px] text-slate-400 font-semibold">Terkunci</span>
+                @endif
             </div>
+            <p class="text-xs text-slate-500">
+                Otomatis aktif ketika <b>Dokumen WO</b> dan <b>Bukti Pembayaran</b> keduanya telah disetujui admin.
+            </p>
 
             @if ($pemesanan->status_pengerjaan === 'Done')
                 <div class="mt-3 rounded-2xl bg-white p-3.5 border border-emerald-200 space-y-1.5 text-xs">
@@ -645,6 +790,239 @@
             btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white shrink-0" width="16" height="16" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Mengunggah & Memproses...</span>`;
         }
     }
+
+    // Script Popover Date & Time Picker untuk Pengajuan Hasil Survei Teknisi
+    document.addEventListener('DOMContentLoaded', function () {
+        const tglContainer = document.getElementById('tgl_pengerjaan_container');
+        const tglTrigger = document.getElementById('tgl_pengerjaan_trigger');
+        const tglPopover = document.getElementById('tgl_pengerjaan_popover');
+        const hiddenTgl = document.getElementById('tgl_pengerjaan_diajukan');
+        const displayTglBtn = document.getElementById('display_tgl_pengerjaan_btn');
+        const calMonthYear = document.getElementById('calendar_month_year_teknisi');
+        const calDaysGrid = document.getElementById('calendar_days_grid_teknisi');
+        const calSelectedPreview = document.getElementById('calendar_selected_preview_teknisi');
+        const btnPrevMonth = document.getElementById('btn_prev_month_teknisi');
+        const btnNextMonth = document.getElementById('btn_next_month_teknisi');
+        const btnConfirmTgl = document.getElementById('btn_confirm_tgl_teknisi');
+
+        const jamContainer = document.getElementById('jam_pengerjaan_container');
+        const jamTrigger = document.getElementById('jam_pengerjaan_trigger');
+        const jamPopover = document.getElementById('jam_pengerjaan_popover');
+        const hiddenJam = document.getElementById('jam_pengerjaan_diajukan');
+        const displayJamBtn = document.getElementById('display_jam_pengerjaan_btn');
+        const jamPreviewText = document.getElementById('teknisi_popover_preview_time');
+        const btnConfirmJam = document.getElementById('btn_confirm_jam_teknisi');
+
+        const indoMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const indoDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+        if (tglTrigger && tglPopover) {
+            let initialVal = hiddenTgl ? hiddenTgl.value : '';
+            let selectedDate = initialVal ? new Date(initialVal + 'T00:00:00') : new Date();
+            if (isNaN(selectedDate.getTime())) {
+                selectedDate = new Date();
+                selectedDate.setDate(selectedDate.getDate() + 1);
+            }
+            selectedDate.setHours(0, 0, 0, 0);
+
+            let viewDate = new Date(selectedDate);
+            const todayObj = new Date();
+            todayObj.setHours(0, 0, 0, 0);
+
+            function formatDateString(d) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+
+            function formatDisplayDate(d) {
+                return `${indoDays[d.getDay()]}, ${d.getDate()} ${indoMonths[d.getMonth()]} ${d.getFullYear()}`;
+            }
+
+            function renderCalendar() {
+                if (!calMonthYear || !calDaysGrid) return;
+                const y = viewDate.getFullYear();
+                const m = viewDate.getMonth();
+                calMonthYear.textContent = `${indoMonths[m]} ${y}`;
+
+                const firstDayIdx = new Date(y, m, 1).getDay();
+                const lastDate = new Date(y, m + 1, 0).getDate();
+                const prevLastDate = new Date(y, m, 0).getDate();
+
+                calDaysGrid.innerHTML = '';
+
+                // Hari sisa bulan sebelumnya
+                for (let i = firstDayIdx; i > 0; i--) {
+                    const prevDay = prevLastDate - i + 1;
+                    const cell = document.createElement('div');
+                    cell.className = 'text-slate-300 text-xs py-1.5 select-none';
+                    cell.textContent = prevDay;
+                    calDaysGrid.appendChild(cell);
+                }
+
+                // Hari bulan berjalan
+                for (let day = 1; day <= lastDate; day++) {
+                    const currDate = new Date(y, m, day);
+                    currDate.setHours(0, 0, 0, 0);
+                    const isPast = currDate < todayObj;
+                    const isSelected = (currDate.getTime() === selectedDate.getTime());
+                    const isToday = (currDate.getTime() === todayObj.getTime());
+
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = day;
+
+                    if (isPast) {
+                        btn.className = 'w-full py-1 text-xs text-slate-300 cursor-not-allowed select-none';
+                        btn.disabled = true;
+                    } else if (isSelected) {
+                        btn.className = 'w-full py-1 text-xs font-black bg-emerald-600 text-white rounded-lg shadow-sm transition';
+                    } else if (isToday) {
+                        btn.className = 'w-full py-1 text-xs font-bold text-emerald-700 border border-emerald-400 rounded-lg hover:bg-emerald-50 transition';
+                    } else {
+                        btn.className = 'w-full py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition';
+                    }
+
+                    if (!isPast) {
+                        btn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            selectedDate = currDate;
+                            if (hiddenTgl) hiddenTgl.value = formatDateString(selectedDate);
+                            if (displayTglBtn) displayTglBtn.textContent = formatDisplayDate(selectedDate);
+                            if (calSelectedPreview) calSelectedPreview.textContent = `${selectedDate.getDate()} ${indoMonths[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+                            renderCalendar();
+                            tglPopover.classList.add('hidden');
+                        });
+                    }
+
+                    calDaysGrid.appendChild(btn);
+                }
+            }
+
+            tglTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = tglPopover.classList.contains('hidden');
+                if (isHidden) {
+                    tglPopover.classList.remove('hidden');
+                    if (jamPopover) jamPopover.classList.add('hidden');
+                    renderCalendar();
+                } else {
+                    tglPopover.classList.add('hidden');
+                }
+            });
+
+            if (btnPrevMonth) {
+                btnPrevMonth.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    viewDate.setMonth(viewDate.getMonth() - 1);
+                    renderCalendar();
+                });
+            }
+
+            if (btnNextMonth) {
+                btnNextMonth.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    viewDate.setMonth(viewDate.getMonth() + 1);
+                    renderCalendar();
+                });
+            }
+
+            if (btnConfirmTgl) {
+                btnConfirmTgl.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    tglPopover.classList.add('hidden');
+                });
+            }
+
+            renderCalendar();
+        }
+
+        if (jamTrigger && jamPopover) {
+            let initialJamVal = hiddenJam ? hiddenJam.value : '09:00';
+            let jamParts = initialJamVal.split(':');
+            let currentH = jamParts[0] || '09';
+            let currentM = jamParts[1] || '00';
+
+            function updateTeknisiTime() {
+                const timeStr = currentH + ':' + currentM;
+                if (hiddenJam) hiddenJam.value = timeStr;
+                if (displayJamBtn) displayJamBtn.textContent = timeStr + ' WITA';
+                if (jamPreviewText) jamPreviewText.textContent = timeStr + ' WITA';
+            }
+
+            function scrollTeknisiActive() {
+                const actH = jamPopover.querySelector('.teknisi-hour-opt.bg-emerald-600');
+                const actM = jamPopover.querySelector('.teknisi-minute-opt.bg-emerald-600');
+                if (actH) actH.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if (actM) actM.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+
+            jamTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = jamPopover.classList.contains('hidden');
+                if (isHidden) {
+                    jamPopover.classList.remove('hidden');
+                    if (tglPopover) tglPopover.classList.add('hidden');
+                    setTimeout(scrollTeknisiActive, 50);
+                } else {
+                    jamPopover.classList.add('hidden');
+                }
+            });
+
+            jamPopover.querySelectorAll('.teknisi-hour-opt').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    jamPopover.querySelectorAll('.teknisi-hour-opt').forEach(b => {
+                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                        b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                    });
+                    this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                    this.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
+                    currentH = this.getAttribute('data-hour');
+                    updateTeknisiTime();
+                });
+            });
+
+            jamPopover.querySelectorAll('.teknisi-minute-opt').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    jamPopover.querySelectorAll('.teknisi-minute-opt').forEach(b => {
+                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                        b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                    });
+                    this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                    this.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
+                    currentM = this.getAttribute('data-minute');
+                    updateTeknisiTime();
+                });
+            });
+
+            if (btnConfirmJam) {
+                btnConfirmJam.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    jamPopover.classList.add('hidden');
+                });
+            }
+        }
+
+        // Tutup popover jika klik di luar kontainer
+        document.addEventListener('click', function (e) {
+            if (tglContainer && !tglContainer.contains(e.target) && tglPopover) {
+                tglPopover.classList.add('hidden');
+            }
+            if (jamContainer && !jamContainer.contains(e.target) && jamPopover) {
+                jamPopover.classList.add('hidden');
+            }
+        });
+    });
 </script>
 @endpush
 @endsection

@@ -16,8 +16,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                 </div>
-                <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Login Portal Admin</h1>
-                <p class="text-xs text-gray-500 mt-1">Khusus bagi pengelola / owner CV. Ambius</p>
+                <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Login Portal Admin & Teknisi</h1>
+                <p class="text-xs text-gray-500 mt-1">Khusus bagi Admin & Teknisi CV. Ambius</p>
             </div>
 
             {{-- Form --}}
@@ -28,7 +28,7 @@
                     <label for="email" class="block text-sm font-semibold text-gray-700">Alamat Email</label>
                     <input type="email" name="email" id="email" value="{{ old('email') }}" required autocomplete="email" autofocus
                            class="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none @error('email') border-red-300 ring-1 ring-red-300 @enderror"
-                           placeholder="admin@ambius.com">
+                           placeholder="admin@ambius.com atau teknisi@ambius.com">
                     @error('email')
                         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                     @enderror

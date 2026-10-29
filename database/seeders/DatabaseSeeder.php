@@ -20,8 +20,17 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
         ]);
 
-        // Create teknisi
-        $teknisis = Teknisi::factory()->count(5)->create();
+        // Create default teknisi
+        $defaultTeknisi = Teknisi::create([
+            'nama' => 'Teknisi Utama',
+            'email' => 'teknisi@ambius.com',
+            'no_telp' => '081234567891',
+            'password' => bcrypt('password'),
+            'status_aktif' => true,
+        ]);
+
+        // Create random active teknisis
+        $teknisis = collect([$defaultTeknisi])->merge(Teknisi::factory()->count(4)->create());
 
         // Create inactive teknisi
         Teknisi::factory()->inactive()->create([

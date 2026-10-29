@@ -136,12 +136,37 @@
                     <p class="text-xs text-slate-400 mt-1">Pilih jenis penanganan hama, paket / ukuran area, dan tanggal survei lokasi yang Anda kehendaki.</p>
                 </div>
 
-                <div>
-                    <label for="id_tarif" class="block text-xs font-bold text-slate-700 mb-1">
+                {{-- Pilihan Layanan Custom Dropdown Popover --}}
+                @php
+                    $selectedTarifId = old('id_tarif');
+                    $selectedTarif = $tarifList->firstWhere('id_tarif', $selectedTarifId);
+                @endphp
+                <div class="relative" id="tarif_picker_container">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
                         Pilih Paket & Jenis Layanan Pest Control <span class="text-rose-500">*</span>
                     </label>
-                    <select name="id_tarif" id="id_tarif" required
-                            class="w-full rounded-xl border-slate-300 px-4 py-3 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+
+                    {{-- Trigger Button Layanan --}}
+                    <button type="button" id="tarif_picker_trigger"
+                            class="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-xs text-slate-900 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                        <div class="flex flex-col pr-2 min-w-0">
+                            <span id="display_tarif_title" class="font-bold text-slate-900 text-xs sm:text-sm truncate">
+                                {{ $selectedTarif ? $selectedTarif->jenis_layanan : '-- Pilih Layanan Pest Control --' }}
+                            </span>
+                            <span id="display_tarif_sub" class="text-[11px] text-slate-500 mt-0.5 truncate">
+                                {{ $selectedTarif ? ($selectedTarif->nama_paket ?: 'Paket Standar') . ' • Rp ' . number_format($selectedTarif->tarif_dasar, 0, ',', '.') . ' / ' . $selectedTarif->satuan : 'Klik untuk memilih paket & tarif' }}
+                            </span>
+                        </div>
+                        <span class="flex-shrink-0 flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition ml-2">
+                            <span>Pilih Layanan</span>
+                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>
+                    </button>
+
+                    {{-- Hidden Select asli untuk backend & kalkulasi --}}
+                    <select name="id_tarif" id="id_tarif" required class="hidden">
                         <option value="">-- Pilih Layanan Pest Control --</option>
                         @foreach ($tarifList as $tarif)
                             <option value="{{ $tarif->id_tarif }}"
@@ -149,10 +174,45 @@
                                     data-max="{{ (int)($tarif->ukuran_area_max ?? 0) }}"
                                     data-satuan="{{ $tarif->satuan }}"
                                     {{ old('id_tarif') == $tarif->id_tarif ? 'selected' : '' }}>
-                                {{ $tarif->jenis_layanan }} ({{ $tarif->nama_paket ?: 'Standar' }}) - Tarif Dasar: Rp {{ number_format($tarif->tarif_dasar, 0, ',', '.') }} / {{ $tarif->satuan }}
+                                {{ $tarif->jenis_layanan }} ({{ $tarif->nama_paket ?: 'Standar' }}) - Rp {{ number_format($tarif->tarif_dasar, 0, ',', '.') }} / {{ $tarif->satuan }}
                             </option>
                         @endforeach
                     </select>
+
+                    {{-- Popover Dropdown Kustom (100% pas dalam lebar kontainer form) --}}
+                    <div id="tarif_picker_popover" class="hidden absolute left-0 right-0 z-40 mt-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xl max-h-80 overflow-y-auto space-y-1.5 scroll-smooth">
+                        <div class="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-bold text-slate-800">Daftar Paket & Layanan</span>
+                            <span class="text-[10px] text-slate-400">Pilih salah satu</span>
+                        </div>
+                        @foreach ($tarifList as $tarif)
+                            @php $isOptSelected = (old('id_tarif') == $tarif->id_tarif); @endphp
+                            <div data-tarif-id="{{ $tarif->id_tarif }}"
+                                 data-title="{{ $tarif->jenis_layanan }}"
+                                 data-sub="{{ ($tarif->nama_paket ?: 'Paket Standar') . ' • Rp ' . number_format($tarif->tarif_dasar, 0, ',', '.') . ' / ' . $tarif->satuan }}"
+                                 class="tarif-option-item cursor-pointer p-3 rounded-xl border transition flex items-start justify-between gap-3 {{ $isOptSelected ? 'border-emerald-500 bg-emerald-50/70 ring-1 ring-emerald-500' : 'border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/40 bg-white' }}">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-xs font-bold text-slate-900 leading-snug">{{ $tarif->jenis_layanan }}</span>
+                                        @if ($tarif->nama_paket)
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                                {{ $tarif->nama_paket }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    @if ($tarif->deskripsi)
+                                        <p class="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{{ $tarif->deskripsi }}</p>
+                                    @endif
+                                </div>
+                                <div class="text-right flex-shrink-0">
+                                    <span class="text-xs font-extrabold text-emerald-700 block">
+                                        Rp {{ number_format($tarif->tarif_dasar, 0, ',', '.') }}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 block">per {{ $tarif->satuan }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                     @error('id_tarif')
                         <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
                     @enderror
@@ -220,14 +280,73 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label for="tgl_survei_diminta" class="block text-xs font-bold text-slate-700 mb-1">
+                    @php
+                        $defaultTgl = old('tgl_survei_diminta', old('tanggal_survey', date('Y-m-d', strtotime('+1 day'))));
+                        try {
+                            $defaultTglCarbon = \Carbon\Carbon::parse($defaultTgl);
+                        } catch (\Exception $e) {
+                            $defaultTglCarbon = \Carbon\Carbon::now()->addDay();
+                            $defaultTgl = $defaultTglCarbon->format('Y-m-d');
+                        }
+                    @endphp
+                    <div class="relative" id="date_picker_container">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">
                             Tanggal Survei Lapangan yang Diinginkan <span class="text-rose-500">*</span>
                         </label>
-                        <input type="date" name="tgl_survei_diminta" id="tgl_survei_diminta"
-                               min="{{ date('Y-m-d') }}"
-                               value="{{ old('tgl_survei_diminta', old('tanggal_survey', date('Y-m-d', strtotime('+1 day')))) }}" required
-                               class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+
+                        <button type="button" id="date_picker_trigger"
+                                class="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                            <span id="display_date_btn" class="font-extrabold text-slate-900 text-xs">
+                                {{ $defaultTglCarbon->translatedFormat('l, d F Y') }}
+                            </span>
+                            <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition">
+                                <span>Pilih Tanggal</span>
+                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </span>
+                        </button>
+
+                        {{-- Hidden input yang dikirim ke backend --}}
+                        <input type="hidden" name="tgl_survei_diminta" id="tgl_survei_diminta" value="{{ $defaultTgl }}">
+
+                        {{-- Popover Dropdown Kalender Kustom --}}
+                        <div id="date_picker_popover" class="hidden absolute left-0 right-0 sm:right-auto sm:w-80 z-40 mt-1.5 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl">
+                            {{-- Header Kalender: Bulan & Navigasi --}}
+                            <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2">
+                                <button type="button" id="btn_prev_month" class="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                                </button>
+                                <span id="calendar_month_year" class="text-xs font-bold text-slate-800">
+                                    {{ $defaultTglCarbon->translatedFormat('F Y') }}
+                                </span>
+                                <button type="button" id="btn_next_month" class="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                            </div>
+
+                            {{-- Nama Hari --}}
+                            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
+                                <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+                            </div>
+
+                            {{-- Grid Hari --}}
+                            <div id="calendar_days_grid" class="grid grid-cols-7 gap-1 text-center">
+                                {{-- Generated by JS --}}
+                            </div>
+
+                            {{-- Footer Kalender --}}
+                            <div class="pt-2.5 mt-2.5 border-t border-slate-100 flex items-center justify-between">
+                                <span id="calendar_selected_preview" class="text-[11px] font-bold text-emerald-700 truncate pr-1">
+                                    {{ $defaultTglCarbon->translatedFormat('d M Y') }}
+                                </span>
+                                <button type="button" id="btn_confirm_date"
+                                        class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition">
+                                    Selesai
+                                </button>
+                            </div>
+                        </div>
+
                         @error('tgl_survei_diminta')
                             <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
                         @enderror
@@ -414,6 +533,209 @@
         // Run initial
         updateEstimation();
 
+        // Logic Popover Custom Tarif Picker
+        const tarifPickerContainer = document.getElementById('tarif_picker_container');
+        const tarifPickerTrigger = document.getElementById('tarif_picker_trigger');
+        const tarifPickerPopover = document.getElementById('tarif_picker_popover');
+        const displayTarifTitle = document.getElementById('display_tarif_title');
+        const displayTarifSub = document.getElementById('display_tarif_sub');
+
+        if (tarifPickerTrigger && tarifPickerPopover) {
+            tarifPickerTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = tarifPickerPopover.classList.contains('hidden');
+                if (isHidden) {
+                    tarifPickerPopover.classList.remove('hidden');
+                    if (typeof datePickerPopover !== 'undefined' && datePickerPopover) datePickerPopover.classList.add('hidden');
+                    if (typeof timePickerPopover !== 'undefined' && timePickerPopover) timePickerPopover.classList.add('hidden');
+                } else {
+                    tarifPickerPopover.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (tarifPickerContainer && !tarifPickerContainer.contains(e.target)) {
+                    tarifPickerPopover.classList.add('hidden');
+                }
+            });
+
+            tarifPickerPopover.querySelectorAll('.tarif-option-item').forEach(function (item) {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const tarifId = this.getAttribute('data-tarif-id');
+                    const title = this.getAttribute('data-title');
+                    const sub = this.getAttribute('data-sub');
+
+                    tarifPickerPopover.querySelectorAll('.tarif-option-item').forEach(function (el) {
+                        el.classList.remove('border-emerald-500', 'bg-emerald-50/70', 'ring-1', 'ring-emerald-500');
+                        el.classList.add('border-slate-100', 'bg-white');
+                    });
+                    this.classList.add('border-emerald-500', 'bg-emerald-50/70', 'ring-1', 'ring-emerald-500');
+                    this.classList.remove('border-slate-100', 'bg-white');
+
+                    if (displayTarifTitle) displayTarifTitle.textContent = title;
+                    if (displayTarifSub) displayTarifSub.textContent = sub;
+
+                    if (selectTarif) {
+                        selectTarif.value = tarifId;
+                        selectTarif.dispatchEvent(new Event('change'));
+                    }
+
+                    tarifPickerPopover.classList.add('hidden');
+                });
+            });
+        }
+
+        // Logic Popover Custom Date Picker
+        const datePickerContainer = document.getElementById('date_picker_container');
+        const datePickerTrigger = document.getElementById('date_picker_trigger');
+        const datePickerPopover = document.getElementById('date_picker_popover');
+        const hiddenTgl = document.getElementById('tgl_survei_diminta');
+        const displayDateBtn = document.getElementById('display_date_btn');
+        const calendarMonthYear = document.getElementById('calendar_month_year');
+        const calendarDaysGrid = document.getElementById('calendar_days_grid');
+        const calendarSelectedPreview = document.getElementById('calendar_selected_preview');
+        const btnPrevMonth = document.getElementById('btn_prev_month');
+        const btnNextMonth = document.getElementById('btn_next_month');
+        const btnConfirmDate = document.getElementById('btn_confirm_date');
+
+        const indoMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const indoDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+        let selectedDate = new Date("{{ $defaultTgl }}T00:00:00");
+        if (isNaN(selectedDate.getTime())) {
+            selectedDate = new Date();
+            selectedDate.setDate(selectedDate.getDate() + 1);
+            selectedDate.setHours(0,0,0,0);
+        }
+        let viewDate = new Date(selectedDate);
+
+        const todayObj = new Date();
+        todayObj.setHours(0,0,0,0);
+
+        function formatDateString(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function formatDisplayDate(d) {
+            return `${indoDays[d.getDay()]}, ${d.getDate()} ${indoMonths[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        function renderCalendar() {
+            if (!calendarMonthYear || !calendarDaysGrid) return;
+            const y = viewDate.getFullYear();
+            const m = viewDate.getMonth();
+            calendarMonthYear.textContent = `${indoMonths[m]} ${y}`;
+
+            const firstDayIdx = new Date(y, m, 1).getDay();
+            const lastDate = new Date(y, m + 1, 0).getDate();
+            const prevLastDate = new Date(y, m, 0).getDate();
+
+            calendarDaysGrid.innerHTML = '';
+
+            // Hari sisa bulan sebelumnya
+            for (let i = firstDayIdx; i > 0; i--) {
+                const prevDay = prevLastDate - i + 1;
+                const cell = document.createElement('div');
+                cell.className = 'text-slate-300 text-xs py-1.5 select-none';
+                cell.textContent = prevDay;
+                calendarDaysGrid.appendChild(cell);
+            }
+
+            // Hari bulan saat ini
+            for (let day = 1; day <= lastDate; day++) {
+                const currDate = new Date(y, m, day);
+                currDate.setHours(0,0,0,0);
+                const isPast = currDate < todayObj;
+                const isSelected = (currDate.getTime() === selectedDate.getTime());
+                const isToday = (currDate.getTime() === todayObj.getTime());
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = day;
+
+                if (isPast) {
+                    btn.className = 'w-full py-1.5 text-xs text-slate-300 cursor-not-allowed select-none';
+                    btn.disabled = true;
+                } else if (isSelected) {
+                    btn.className = 'w-full py-1.5 text-xs font-black bg-emerald-600 text-white rounded-lg shadow-sm transition';
+                } else if (isToday) {
+                    btn.className = 'w-full py-1.5 text-xs font-bold text-emerald-700 border border-emerald-400 rounded-lg hover:bg-emerald-50 transition';
+                } else {
+                    btn.className = 'w-full py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition';
+                }
+
+                if (!isPast) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        selectedDate = currDate;
+                        hiddenTgl.value = formatDateString(selectedDate);
+                        displayDateBtn.textContent = formatDisplayDate(selectedDate);
+                        if (calendarSelectedPreview) calendarSelectedPreview.textContent = `${selectedDate.getDate()} ${indoMonths[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+                        renderCalendar();
+                        datePickerPopover.classList.add('hidden');
+                    });
+                }
+
+                calendarDaysGrid.appendChild(btn);
+            }
+        }
+
+        if (datePickerTrigger && datePickerPopover) {
+            datePickerTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = datePickerPopover.classList.contains('hidden');
+                if (isHidden) {
+                    datePickerPopover.classList.remove('hidden');
+                    if (tarifPickerPopover) tarifPickerPopover.classList.add('hidden');
+                    if (typeof timePickerPopover !== 'undefined' && timePickerPopover) timePickerPopover.classList.add('hidden');
+                    renderCalendar();
+                } else {
+                    datePickerPopover.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (datePickerContainer && !datePickerContainer.contains(e.target)) {
+                    datePickerPopover.classList.add('hidden');
+                }
+            });
+
+            if (btnPrevMonth) {
+                btnPrevMonth.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    viewDate.setMonth(viewDate.getMonth() - 1);
+                    renderCalendar();
+                });
+            }
+
+            if (btnNextMonth) {
+                btnNextMonth.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    viewDate.setMonth(viewDate.getMonth() + 1);
+                    renderCalendar();
+                });
+            }
+
+            if (btnConfirmDate) {
+                btnConfirmDate.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    datePickerPopover.classList.add('hidden');
+                });
+            }
+
+            renderCalendar();
+        }
+
         // Logic Popover Scrollable Time Picker (24 Jam - WITA)
         const timePickerContainer = document.getElementById('time_picker_container');
         const timePickerTrigger = document.getElementById('time_picker_trigger');
@@ -448,6 +770,8 @@
                 const isHidden = timePickerPopover.classList.contains('hidden');
                 if (isHidden) {
                     timePickerPopover.classList.remove('hidden');
+                    if (tarifPickerPopover) tarifPickerPopover.classList.add('hidden');
+                    if (datePickerPopover) datePickerPopover.classList.add('hidden');
                     setTimeout(scrollToActive, 60);
                 } else {
                     timePickerPopover.classList.add('hidden');

@@ -56,22 +56,23 @@
 
     {{-- Kartu Ringkasan Finansial --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div class="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Total Pendapatan Terverifikasi</span>
-            <span class="text-2xl font-extrabold text-emerald-700 block mt-2">Rp {{ number_format($totalRevenue, 0, ',', '.') }}</span>
-            <span class="text-[11px] text-gray-400 mt-1 block">Periode {{ $viewType === 'yearly' ? 'Tahun ' . $selectedYear : \Carbon\Carbon::createFromDate($selectedYear, (int)$selectedMonth, 1)->translatedFormat('F Y') }}</span>
+        {{-- Card Total Pendapatan (Highlight Berbeda) --}}
+        <div class="rounded-2xl border border-primary-700/60 bg-gradient-to-br from-primary-950 via-primary-900 to-emerald-900 p-6 text-white shadow-lg print:bg-white print:text-gray-900 print:border print:border-gray-300">
+            <span class="text-xs font-bold text-emerald-200 uppercase tracking-wider block print:text-gray-600">Total Pendapatan Terverifikasi</span>
+            <span class="text-2xl sm:text-3xl font-black text-white block mt-3 tracking-tight print:text-emerald-700">Rp {{ number_format($totalRevenue, 0, ',', '.') }}</span>
+            <span class="text-xs text-emerald-200/80 mt-1.5 block font-medium print:text-gray-500">Periode {{ $viewType === 'yearly' ? 'Tahun ' . $selectedYear : \Carbon\Carbon::createFromDate($selectedYear, (int)$selectedMonth, 1)->translatedFormat('F Y') }}</span>
         </div>
 
-        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Jumlah Pekerjaan Selesai</span>
-            <span class="text-2xl font-extrabold text-gray-900 block mt-2">{{ $totalOrders }} Pesanan</span>
-            <span class="text-[11px] text-gray-400 mt-1 block">Status Done & Lunas</span>
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block">Jumlah Pekerjaan Selesai</span>
+            <span class="text-2xl font-black text-gray-900 block mt-3">{{ $totalOrders }} Pesanan</span>
+            <span class="text-xs text-gray-400 mt-1.5 block font-medium">Status Done & Lunas</span>
         </div>
 
-        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Rata-rata Nilai Pekerjaan</span>
-            <span class="text-2xl font-extrabold text-gray-900 block mt-2">Rp {{ number_format($avgTicket, 0, ',', '.') }}</span>
-            <span class="text-[11px] text-gray-400 mt-1 block">Per penanganan pest control</span>
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block">Rata-rata Nilai Pekerjaan</span>
+            <span class="text-2xl font-black text-gray-900 block mt-3">Rp {{ number_format($avgTicket, 0, ',', '.') }}</span>
+            <span class="text-xs text-gray-400 mt-1.5 block font-medium">Per penanganan pest control</span>
         </div>
     </div>
 

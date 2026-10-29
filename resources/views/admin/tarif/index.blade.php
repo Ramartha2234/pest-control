@@ -177,55 +177,57 @@
 
 {{-- Modal Ubah Tarif Area --}}
 <div id="modalEditArea" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4 animate-scale-in">
+    <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 sm:p-7 shadow-2xl space-y-5 animate-scale-in">
         <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h3 class="text-sm font-extrabold text-gray-900 flex items-center gap-2">
-                <span>⚙️</span> Edit Tarif Area Penanganan
+            <h3 class="text-base font-bold text-gray-900">
+                Edit Tarif Area Penanganan
             </h3>
-            <button type="button" onclick="closeEditAreaModal()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">
+            <button type="button" onclick="closeEditAreaModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none transition">
                 &times;
             </button>
         </div>
 
-        <form id="formEditArea" method="POST" action="" class="space-y-4 text-xs">
+        <form id="formEditArea" method="POST" action="" class="space-y-4">
             @csrf
             @method('PUT')
 
             <div>
-                <label class="block font-bold text-gray-700 mb-1">Nama Area</label>
+                <label for="edit_nama_area" class="block text-sm font-semibold text-gray-700">Nama Area</label>
                 <input type="text" name="nama_area" id="edit_nama_area" required
-                       class="w-full rounded-xl border-gray-300 text-xs focus:border-primary-500 focus:ring-primary-500">
+                       class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none"
+                       placeholder="Contoh: Indoor (Dalam Ruangan)">
             </div>
 
             <div>
-                <label class="block font-bold text-gray-700 mb-1">
+                <label for="edit_biaya_tambahan" class="block text-sm font-semibold text-gray-700">
                     Biaya Tambahan (Rp) <span class="text-rose-500">*</span>
                 </label>
                 <input type="number" name="biaya_tambahan" id="edit_biaya_tambahan" required min="0" step="1000"
-                       class="w-full rounded-xl border-gray-300 text-xs focus:border-primary-500 focus:ring-primary-500 font-extrabold text-gray-900">
-                <p class="text-[11px] text-gray-400 mt-1">Masukkan nominal biaya tambahan (contoh: 100000, 150000). Masukkan 0 jika tidak ada biaya tambahan.</p>
+                       class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none font-semibold"
+                       placeholder="0">
+                <p class="mt-1.5 text-xs text-gray-500">Masukkan nominal biaya tambahan (contoh: 100000, 150000). Masukkan 0 jika tidak ada biaya tambahan.</p>
             </div>
 
             <div>
-                <label class="block font-bold text-gray-700 mb-1">Cakupan Lokasi / Keterangan</label>
+                <label for="edit_keterangan" class="block text-sm font-semibold text-gray-700">Cakupan Lokasi / Keterangan</label>
                 <input type="text" name="keterangan" id="edit_keterangan"
-                       placeholder="Contoh: Halaman, taman, perimeter luar, pekarangan"
-                       class="w-full rounded-xl border-gray-300 text-xs focus:border-primary-500 focus:ring-primary-500">
+                       placeholder="Contoh: Rumah, kantor, kamar, restoran, gudang"
+                       class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none">
             </div>
 
-            <div class="flex items-center gap-2 pt-1">
+            <div class="flex items-center pt-1">
                 <input type="checkbox" name="status_aktif" value="1" id="edit_status_aktif"
-                       class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
-                <label for="edit_status_aktif" class="font-semibold text-gray-700">Aktifkan opsi ini di formulir pemesanan online</label>
+                       class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                <label for="edit_status_aktif" class="ml-2 block text-sm font-medium text-gray-700">Aktifkan opsi ini di formulir pemesanan online</label>
             </div>
 
-            <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+            <div class="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
                 <button type="button" onclick="closeEditAreaModal()"
-                        class="px-4 py-2 rounded-xl border border-gray-300 font-semibold text-gray-600 hover:bg-gray-50 transition">
+                        class="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
                     Batal
                 </button>
                 <button type="submit"
-                        class="px-5 py-2 rounded-xl bg-primary-600 font-bold text-white shadow-sm hover:bg-primary-700 transition">
+                        class="rounded-xl bg-primary-600 hover:bg-primary-700 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition">
                     Simpan Perubahan Tarif
                 </button>
             </div>

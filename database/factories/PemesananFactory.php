@@ -2,10 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\JadwalPenugasan;
 use App\Models\Pelanggan;
 use App\Models\Pemesanan;
-use App\Models\Pengguna;
 use App\Models\TarifLayanan;
 use App\Models\Teknisi;
 use Illuminate\Database\Eloquent\Factories\Factory;

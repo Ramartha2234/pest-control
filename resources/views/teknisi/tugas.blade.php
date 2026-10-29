@@ -40,26 +40,28 @@
             @endif
         </form>
 
-        {{-- Filter Status Tabs (Horizontal Scrollable on Mobile) --}}
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+        {{-- Filter Status Tabs (Geser Mouse / Swipe Touch / Tombol Kiri & Kanan) --}}
+        {{-- Filter Status Tabs (Geser Mouse / Swipe Touch) --}}
+        <div id="status_tab_container"
+             class="w-full flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 text-xs select-none scroll-smooth cursor-grab active:cursor-grabbing touch-pan-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <a href="{{ route('teknisi.tugas', ['search' => $search]) }}"
-               class="px-3 py-1.5 rounded-full whitespace-nowrap font-bold transition {{ empty($currentFilter) ? 'bg-emerald-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+               class="tab-filter-item px-3.5 py-1.5 rounded-full whitespace-nowrap font-bold transition flex-shrink-0 {{ empty($currentFilter) ? 'bg-emerald-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 Semua ({{ $counts['total'] }})
             </a>
             <a href="{{ route('teknisi.tugas', ['status' => 'Pending', 'search' => $search]) }}"
-               class="px-3 py-1.5 rounded-full whitespace-nowrap font-bold transition {{ $currentFilter === 'Pending' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+               class="tab-filter-item px-3.5 py-1.5 rounded-full whitespace-nowrap font-bold transition flex-shrink-0 {{ $currentFilter === 'Pending' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 Pending ({{ $counts['pending'] }})
             </a>
             <a href="{{ route('teknisi.tugas', ['status' => 'On-Going', 'search' => $search]) }}"
-               class="px-3 py-1.5 rounded-full whitespace-nowrap font-bold transition {{ $currentFilter === 'On-Going' ? 'bg-sky-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+               class="tab-filter-item px-3.5 py-1.5 rounded-full whitespace-nowrap font-bold transition flex-shrink-0 {{ $currentFilter === 'On-Going' ? 'bg-sky-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 On-Going ({{ $counts['ongoing'] }})
             </a>
             <a href="{{ route('teknisi.tugas', ['status' => 'Done', 'search' => $search]) }}"
-               class="px-3 py-1.5 rounded-full whitespace-nowrap font-bold transition {{ $currentFilter === 'Done' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+               class="tab-filter-item px-3.5 py-1.5 rounded-full whitespace-nowrap font-bold transition flex-shrink-0 {{ $currentFilter === 'Done' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 Selesai ({{ $counts['done'] }})
             </a>
             <a href="{{ route('teknisi.tugas', ['status' => 'Cancel', 'search' => $search]) }}"
-               class="px-3 py-1.5 rounded-full whitespace-nowrap font-bold transition {{ $currentFilter === 'Cancel' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+               class="tab-filter-item px-3.5 py-1.5 rounded-full whitespace-nowrap font-bold transition flex-shrink-0 {{ $currentFilter === 'Cancel' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 Batal ({{ $counts['cancel'] }})
             </a>
         </div>
@@ -90,9 +92,9 @@
                     };
                 @endphp
                 <div class="rounded-2xl border {{ $isNeedAction ? 'border-2 border-rose-300 bg-rose-50/30' : 'border-slate-200 bg-white' }} p-4 shadow-sm hover:shadow-md transition">
-                    <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
-                        <div>
-                            <div class="flex items-center gap-1.5">
+                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="font-mono text-xs font-black text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
                                     {{ $item->kode_pemesanan }}
                                 </span>
@@ -102,15 +104,15 @@
                                     </span>
                                 @endif
                             </div>
-                            <h3 class="text-base font-bold text-slate-900 mt-1.5">{{ $item->pelanggan->nama }}</h3>
+                            <h3 class="text-base font-bold text-slate-900 mt-1.5 truncate">{{ $item->pelanggan->nama }}</h3>
                             <p class="text-xs text-slate-500">{{ $item->pelanggan->no_hp }} &bull; {{ $item->jenis_properti }} &bull; <b class="{{ ($item->tipe_area ?? 'Indoor') === 'Outdoor' ? 'text-amber-700' : 'text-emerald-700' }}">{{ $item->tipe_area ?? 'Indoor' }}</b></p>
                         </div>
 
                         <div class="text-right flex-shrink-0">
-                            <span class="inline-block rounded-full border px-2.5 py-0.5 text-xs font-bold {{ $statusBadge }}">
+                            <span class="inline-block rounded-full border px-3 py-1 text-xs font-bold whitespace-nowrap {{ $statusBadge }}">
                                 {{ $item->status_pengerjaan }}
                             </span>
-                            <span class="block text-[10px] text-slate-400 mt-1">
+                            <span class="block text-[10px] text-slate-400 mt-1 whitespace-nowrap">
                                 Tahap {{ $item->tahapPengerjaanTeknisi() }}/5
                             </span>
                         </div>
@@ -181,3 +183,72 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabContainer = document.getElementById('status_tab_container');
+
+        if (!tabContainer) return;
+
+        let isDown = false;
+        let startX = 0;
+        let scrollLeftVal = 0;
+        let hasDragged = false;
+
+        // Fungsi Drag Menggunakan Mouse (Klik dan Tarik Geser ke Kiri/Kanan)
+        tabContainer.addEventListener('mousedown', function (e) {
+            isDown = true;
+            hasDragged = false;
+            startX = e.pageX - tabContainer.offsetLeft;
+            scrollLeftVal = tabContainer.scrollLeft;
+            tabContainer.classList.add('cursor-grabbing');
+        });
+
+        window.addEventListener('mouseup', function () {
+            if (isDown) {
+                isDown = false;
+                tabContainer.classList.remove('cursor-grabbing');
+                setTimeout(function () {
+                    hasDragged = false;
+                }, 80);
+            }
+        });
+
+        tabContainer.addEventListener('mousemove', function (e) {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - tabContainer.offsetLeft;
+            const walk = (x - startX) * 1.6;
+            if (Math.abs(x - startX) > 6) {
+                hasDragged = true;
+            }
+            tabContainer.scrollLeft = scrollLeftVal - walk;
+        });
+
+        // Cegah perpindahan halaman jika pengguna sedang menggeser/drag
+        tabContainer.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                if (hasDragged) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        });
+
+        // Mouse Wheel geser horizontal saat kursor berada di atas tab
+        tabContainer.addEventListener('wheel', function (e) {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                tabContainer.scrollLeft += e.deltaY;
+            }
+        }, { passive: false });
+
+        // Scroll otomatis ke tab aktif saat pertama dimuat
+        const activeItem = tabContainer.querySelector('.bg-emerald-700, .bg-amber-500, .bg-sky-500, .bg-emerald-600, .bg-rose-600');
+        if (activeItem) {
+            activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    });
+</script>
+@endpush

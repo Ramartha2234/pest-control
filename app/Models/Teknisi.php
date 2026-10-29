@@ -23,7 +23,7 @@ class Teknisi extends Pengguna
             $model->role = 'teknisi';
             if (empty($model->email)) {
                 $slug = Str::slug($model->nama ?: 'teknisi');
-                $model->email = $slug . random_int(100, 9999) . '@ambius.com';
+                $model->email = $slug.random_int(100, 9999).'@ambius.com';
             }
             if (empty($model->password)) {
                 $model->password = bcrypt('password');

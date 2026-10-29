@@ -110,7 +110,7 @@
                                 <h4 class="text-sm font-bold text-slate-900 mt-1">{{ $task->pelanggan->nama }}</h4>
                                 <p class="text-[11px] text-slate-500">{{ $task->tarifLayanan->jenis_layanan ?? 'Pest Control' }} &bull; <b class="{{ ($task->tipe_area ?? 'Indoor') === 'Outdoor' ? 'text-amber-700' : 'text-emerald-700' }}">{{ $task->tipe_area ?? 'Indoor' }}</b></p>
                             </div>
-                            <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $task->status_pengerjaan === 'On-Going' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
+                            <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap flex-shrink-0 {{ $task->status_pengerjaan === 'On-Going' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
                                 {{ $task->status_pengerjaan }}
                             </span>
                         </div>
@@ -188,7 +188,7 @@
                                 <h4 class="text-sm font-bold text-slate-900 mt-1">{{ $item->pelanggan->nama }}</h4>
                                 <p class="text-[11px] text-slate-500">{{ $item->jenis_properti }} &bull; {{ $item->tarifLayanan->jenis_layanan ?? '-' }}</p>
                             </div>
-                            <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $item->status_pengerjaan === 'On-Going' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
+                            <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap flex-shrink-0 {{ $item->status_pengerjaan === 'On-Going' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
                                 {{ $item->status_pengerjaan }}
                             </span>
                         </div>

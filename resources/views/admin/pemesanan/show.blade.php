@@ -138,6 +138,13 @@
                         Admin dapat menyetujui pemesanan dengan menentukan tanggal/jam survei dan teknisi yang ditugaskan, atau menolak pemesanan.
                     </p>
 
+                    @php
+                        $rawAdminJam = $pemesanan->jam_survei_diminta ? \Carbon\Carbon::parse($pemesanan->jam_survei_diminta)->format('H:i') : '09:00';
+                        $adminJamParts = explode(':', $rawAdminJam);
+                        $defaultAdminHour = str_pad($adminJamParts[0] ?? '09', 2, '0', STR_PAD_LEFT);
+                        $defaultAdminMinute = str_pad($adminJamParts[1] ?? '00', 2, '0', STR_PAD_LEFT);
+                    @endphp
+
                     <form action="{{ route('admin.pemesanan.verifikasi-awal', $pemesanan->id_pemesanan) }}" method="POST" class="space-y-4 text-xs">
                         @csrf
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -155,10 +162,76 @@
                                 <input type="date" name="tgl_survei" value="{{ $pemesanan->tgl_survei_diminta ? \Carbon\Carbon::parse($pemesanan->tgl_survei_diminta)->format('Y-m-d') : date('Y-m-d') }}" required
                                        class="w-full rounded-xl border-gray-300 px-3.5 py-2.5 text-xs sm:text-sm text-gray-800 focus:border-primary-500 focus:ring-primary-500 shadow-sm transition">
                             </div>
-                            <div>
-                                <label class="block font-semibold text-gray-700 mb-1">Jam Survei <span class="text-rose-500">*</span></label>
-                                <input type="time" name="jam_survei" value="{{ $pemesanan->jam_survei_diminta ? \Carbon\Carbon::parse($pemesanan->jam_survei_diminta)->format('H:i') : '09:00' }}" required
-                                       class="w-full rounded-xl border-gray-300 px-3.5 py-2.5 text-xs sm:text-sm text-gray-800 focus:border-primary-500 focus:ring-primary-500 shadow-sm transition">
+                            <div class="relative" id="admin_time_picker_container">
+                                <label class="block font-semibold text-gray-700 mb-1">
+                                    Jam Survei (24 Jam - WITA) <span class="text-rose-500">*</span>
+                                </label>
+
+                                {{-- Trigger Button serasi dengan form pelanggan --}}
+                                <button type="button" id="admin_time_picker_trigger"
+                                        class="w-full flex items-center justify-between rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                                    <span id="admin_display_time_btn" class="font-extrabold text-gray-900 text-xs sm:text-sm">
+                                        {{ $defaultAdminHour }}:{{ $defaultAdminMinute }} WITA
+                                    </span>
+                                    <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg transition">
+                                        <span>Pilih Jam</span>
+                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </span>
+                                </button>
+
+                                {{-- Hidden input yang dikirim ke backend --}}
+                                <input type="hidden" name="jam_survei" id="admin_jam_survei" value="{{ $defaultAdminHour }}:{{ $defaultAdminMinute }}">
+
+                                {{-- Popover Dropdown Scrollable Time Picker (Tanpa AM/PM, Full 24 Jam) --}}
+                                <div id="admin_time_picker_popover" class="hidden absolute right-0 z-40 mt-1.5 w-64 rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
+                                    <div class="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
+                                        <span class="text-[11px] font-bold text-gray-800">
+                                            Gulir / Pilih Waktu (24 Jam)
+                                        </span>
+                                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">WITA</span>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-2 text-center">
+                                        {{-- Kolom Scroll Jam (06:00 sampai 22:00) --}}
+                                        <div>
+                                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Jam</span>
+                                            <div id="admin_scroll_col_jam" class="h-44 overflow-y-auto space-y-1 p-1 bg-gray-50/70 rounded-xl border border-gray-100 scroll-smooth">
+                                                @for ($h = 6; $h <= 22; $h++)
+                                                    @php $hVal = sprintf('%02d', $h); @endphp
+                                                    <button type="button" data-hour="{{ $hVal }}"
+                                                            class="admin-hour-opt w-full py-1.5 text-xs font-bold rounded-lg transition {{ $defaultAdminHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200/80' }}">
+                                                        {{ $hVal }}:00
+                                                    </button>
+                                                @endfor
+                                            </div>
+                                        </div>
+
+                                        {{-- Kolom Scroll Menit (:00 sampai :55) --}}
+                                        <div>
+                                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Menit</span>
+                                            <div id="admin_scroll_col_menit" class="h-44 overflow-y-auto space-y-1 p-1 bg-gray-50/70 rounded-xl border border-gray-100 scroll-smooth">
+                                                @foreach (['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'] as $mVal)
+                                                    <button type="button" data-minute="{{ $mVal }}"
+                                                            class="admin-minute-opt w-full py-1.5 text-xs font-bold rounded-lg transition {{ $defaultAdminMinute === $mVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200/80' }}">
+                                                        :{{ $mVal }}
+                                                    </button>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2.5 mt-2.5 border-t border-gray-100 flex items-center justify-between">
+                                        <div class="text-[11px] text-gray-500">
+                                            Terpilih: <strong id="admin_popover_preview_text" class="text-emerald-700 font-extrabold">{{ $defaultAdminHour }}:{{ $defaultAdminMinute }} WITA</strong>
+                                        </div>
+                                        <button type="button" id="admin_btn_confirm_time"
+                                                class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition">
+                                            Selesai
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -624,4 +697,92 @@
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const adminTimePickerContainer = document.getElementById('admin_time_picker_container');
+        const adminTimePickerTrigger = document.getElementById('admin_time_picker_trigger');
+        const adminTimePickerPopover = document.getElementById('admin_time_picker_popover');
+        const adminHiddenJam = document.getElementById('admin_jam_survei');
+        const adminDisplayTimeBtn = document.getElementById('admin_display_time_btn');
+        const adminPopoverPreviewText = document.getElementById('admin_popover_preview_text');
+        const adminBtnConfirmTime = document.getElementById('admin_btn_confirm_time');
+
+        if (adminTimePickerTrigger && adminTimePickerPopover) {
+            let currentHour = "{{ $defaultAdminHour ?? '09' }}";
+            let currentMinute = "{{ $defaultAdminMinute ?? '00' }}";
+
+            function updateAdminTimeDisplay() {
+                const timeFormatted = currentHour + ':' + currentMinute;
+                if (adminHiddenJam) adminHiddenJam.value = timeFormatted;
+                if (adminDisplayTimeBtn) adminDisplayTimeBtn.textContent = timeFormatted + ' WITA';
+                if (adminPopoverPreviewText) adminPopoverPreviewText.textContent = timeFormatted + ' WITA';
+            }
+
+            function scrollAdminToActive() {
+                const activeH = adminTimePickerPopover.querySelector('.admin-hour-opt.bg-emerald-600');
+                const activeM = adminTimePickerPopover.querySelector('.admin-minute-opt.bg-emerald-600');
+                if (activeH) activeH.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if (activeM) activeM.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+
+            adminTimePickerTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = adminTimePickerPopover.classList.contains('hidden');
+                if (isHidden) {
+                    adminTimePickerPopover.classList.remove('hidden');
+                    setTimeout(scrollAdminToActive, 60);
+                } else {
+                    adminTimePickerPopover.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (adminTimePickerContainer && !adminTimePickerContainer.contains(e.target)) {
+                    adminTimePickerPopover.classList.add('hidden');
+                }
+            });
+
+            if (adminBtnConfirmTime) {
+                adminBtnConfirmTime.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    adminTimePickerPopover.classList.add('hidden');
+                });
+            }
+
+            adminTimePickerPopover.querySelectorAll('.admin-hour-opt').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    adminTimePickerPopover.querySelectorAll('.admin-hour-opt').forEach(function (b) {
+                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                        b.classList.add('text-gray-700', 'hover:bg-gray-200/80');
+                    });
+                    this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                    this.classList.remove('text-gray-700', 'hover:bg-gray-200/80');
+                    currentHour = this.getAttribute('data-hour');
+                    updateAdminTimeDisplay();
+                });
+            });
+
+            adminTimePickerPopover.querySelectorAll('.admin-minute-opt').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    adminTimePickerPopover.querySelectorAll('.admin-minute-opt').forEach(function (b) {
+                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                        b.classList.add('text-gray-700', 'hover:bg-gray-200/80');
+                    });
+                    this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                    this.classList.remove('text-gray-700', 'hover:bg-gray-200/80');
+                    currentMinute = this.getAttribute('data-minute');
+                    updateAdminTimeDisplay();
+                });
+            });
+
+            updateAdminTimeDisplay();
+        }
+    });
+</script>
 @endsection
