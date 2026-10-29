@@ -50,6 +50,33 @@ class DokumenController extends Controller
     }
 
     /**
+     * Unduh / Tampilkan foto bukti transfer Down Payment (DP).
+     */
+    public function showBuktiDp(Request $request, Pemesanan $pemesanan): BinaryFileResponse
+    {
+        if (! $pemesanan->bukti_dp) {
+            abort(404, 'Bukti pembayaran DP belum diunggah.');
+        }
+
+        if (Auth::check() && Auth::user()->isAdmin()) {
+            // Admin bebas akses
+        } else {
+            $kode = $request->query('kode') ?? $request->header('X-Kode-Pemesanan');
+            if (! $kode || (strtoupper($kode) !== strtoupper($pemesanan->kode_pemesanan))) {
+                abort(403, 'Anda tidak memiliki hak akses untuk melihat bukti transfer DP ini.');
+            }
+
+            if ($pemesanan->status_dp !== 'Lunas') {
+                abort(403, 'Bukti DP belum berstatus terverifikasi.');
+            }
+        }
+
+        $path = $this->resolveFilePath($pemesanan->bukti_dp);
+
+        return response()->file($path);
+    }
+
+    /**
      * Verifikasi otorisasi akses file dokumen privat.
      * - Admin: Akses penuh
      * - Teknisi: Hanya jika ditugaskan pada pemesanan ini

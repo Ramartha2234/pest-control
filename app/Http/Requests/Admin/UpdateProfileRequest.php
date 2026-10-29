@@ -30,6 +30,12 @@ class UpdateProfileRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'bank_name' => ['nullable', 'string', 'max:100'],
+            'bank_account_number' => ['nullable', 'string', 'max:100'],
+            'bank_account_holder' => ['nullable', 'string', 'max:150'],
+            'whatsapp_number' => ['nullable', 'string', 'max:50'],
+            'nama_accounting' => ['nullable', 'string', 'max:150'],
+            'nama_direktur' => ['nullable', 'string', 'max:150'],
         ];
     }
 }

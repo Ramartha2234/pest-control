@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\TarifLayanan;
+use App\Services\PemesananStatusService;
+use Carbon\Carbon;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -95,7 +97,23 @@ class StorePemesananRequest extends FormRequest
             'ukuran_area' => ['nullable', 'numeric', 'min:1'],
             'tipe_area' => ['required', 'string', 'in:Indoor,Outdoor'],
             'tgl_survei_diminta' => ['required', 'date', 'after_or_equal:today'],
-            'jam_survei_diminta' => ['required', 'date_format:H:i'],
+            'jam_survei_diminta' => [
+                'required',
+                'date_format:H:i',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $tanggal = $this->input('tgl_survei_diminta');
+                    if (! $tanggal) {
+                        return;
+                    }
+
+                    /** @var PemesananStatusService $statusService */
+                    $statusService = app(PemesananStatusService::class);
+                    if (! $statusService->isSlotTersedia((string) $tanggal, (string) $value)) {
+                        $tanggalFormatted = Carbon::parse($tanggal)->translatedFormat('l, d F Y');
+                        $fail("Mohon maaf, slot survei pukul {$value} WITA pada hari {$tanggalFormatted} sudah dibooking oleh pelanggan lain. Silakan pilih jam atau hari lain.");
+                    }
+                },
+            ],
         ];
     }
 

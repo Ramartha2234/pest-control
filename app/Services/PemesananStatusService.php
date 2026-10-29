@@ -22,6 +22,11 @@ class PemesananStatusService
     public function buatPemesanan(array $data): Pemesanan
     {
         return DB::transaction(function () use ($data) {
+            // Validasi ketersediaan slot (1 Slot Jam = Maksimal 1 Pelanggan)
+            if (! empty($data['validasi_slot']) && isset($data['tgl_survei_diminta'], $data['jam_survei_diminta']) && ! $this->isSlotTersedia($data['tgl_survei_diminta'], $data['jam_survei_diminta'])) {
+                throw new \InvalidArgumentException('Mohon maaf, slot jam survei pada tanggal tersebut sudah dibooking oleh pelanggan lain.');
+            }
+
             // Normalisasi no_hp ke format standar '08...' untuk deduplikasi pelanggan yang konsisten
             $cleanPhone = preg_replace('/[\s\-\.]/', '', (string) $data['no_hp']);
             if (str_starts_with($cleanPhone, '+62')) {
@@ -69,6 +74,13 @@ class PemesananStatusService
             );
             $hargaEstimasi += $biayaTambahanArea;
 
+            // Deteksi kewajiban Down Payment (DP): nominal estimasi >= threshold (Rp 10.000.000)
+            $dpThreshold = (float) config('pestcontrol.dp_threshold', 10000000);
+            $dpPercentage = (float) config('pestcontrol.dp_percentage', 10);
+            $wajibDp = $hargaEstimasi >= $dpThreshold;
+            $nominalDp = $wajibDp ? round($hargaEstimasi * ($dpPercentage / 100), 2) : 0;
+            $statusDp = $wajibDp ? 'Belum Dibayar' : null;
+
             // 3. Simpan pemesanan
             $pemesanan = Pemesanan::create([
                 'id_pelanggan' => $pelanggan->id_pelanggan,
@@ -82,6 +94,9 @@ class PemesananStatusService
                 'tgl_survei_diminta' => $data['tgl_survei_diminta'],
                 'jam_survei_diminta' => $data['jam_survei_diminta'],
                 'harga_estimasi' => $hargaEstimasi,
+                'wajib_dp' => $wajibDp,
+                'nominal_dp' => $nominalDp,
+                'status_dp' => $statusDp,
                 'status_pengerjaan' => 'Pending',
                 'status_pembayaran' => 'Belum Lunas',
                 'tgl_pemesanan' => now(),
@@ -89,6 +104,29 @@ class PemesananStatusService
             ]);
 
             return $pemesanan;
+        });
+    }
+
+    /**
+     * Verifikasi Down Payment (DP) oleh Admin setelah mencocokkan mutasi bank.
+     * Mengunggah bukti transfer DP dari WhatsApp dan membuka kunci jadwal survei.
+     */
+    public function verifikasiDp(
+        Pemesanan $pemesanan,
+        int $adminId,
+        string $buktiDpPath,
+        ?string $catatan = null
+    ): Pemesanan {
+        return DB::transaction(function () use ($pemesanan, $adminId, $buktiDpPath, $catatan) {
+            $pemesanan->update([
+                'id_admin' => $adminId,
+                'status_dp' => 'Lunas',
+                'bukti_dp' => $buktiDpPath,
+                'tgl_bayar_dp' => now(),
+                'catatan_dp' => $catatan,
+            ]);
+
+            return $pemesanan->fresh(['pelanggan', 'tarifLayanan']);
         });
     }
 
@@ -102,6 +140,10 @@ class PemesananStatusService
         string $tglSurvei,
         string $jamSurvei
     ): Pemesanan {
+        if ($pemesanan->wajib_dp && $pemesanan->status_dp !== 'Lunas') {
+            throw new \InvalidArgumentException('Pemesanan skala besar (nominal >= Rp 10.000.000) wajib diverifikasi pembayaran Down Payment (DP 10%) terlebih dahulu sebelum survei dijadwalkan.');
+        }
+
         return DB::transaction(function () use ($pemesanan, $adminId, $teknisiId, $tglSurvei, $jamSurvei) {
             $pemesanan->update([
                 'id_admin' => $adminId,
@@ -168,6 +210,76 @@ class PemesananStatusService
 
             return $count;
         });
+    }
+
+    /**
+     * Cek apakah slot jam survei pada tanggal tertentu masih tersedia (belum dibooking pelanggan lain).
+     * Aturan: 1 Slot Jam = Maksimal 1 Pelanggan.
+     * Pemesanan dengan status 'Cancel' tidak dihitung (slot otomatis terbuka kembali).
+     */
+    public function isSlotTersedia(string $tanggal, string $jam, ?int $excludePemesananId = null): bool
+    {
+        $parts = explode(':', trim($jam));
+        $hour = str_pad($parts[0] ?? '09', 2, '0', STR_PAD_LEFT);
+        $hourPattern = $hour.':%';
+
+        // 1. Cek pemesanan aktif (status bukan Cancel)
+        $adaPemesanan = Pemesanan::whereNotIn('status_pengerjaan', ['Cancel'])
+            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
+            ->whereDate('tgl_survei_diminta', $tanggal)
+            ->where('jam_survei_diminta', 'LIKE', $hourPattern)
+            ->exists();
+
+        if ($adaPemesanan) {
+            return false;
+        }
+
+        // 2. Cek jadwal survei penugasan yang sudah disetujui/ditugaskan
+        $adaJadwal = JadwalPenugasan::whereHas('pemesanan', function ($q) {
+            $q->whereNotIn('status_pengerjaan', ['Cancel']);
+        })
+            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
+            ->whereDate('tgl_survei', $tanggal)
+            ->where('jam_survei', 'LIKE', $hourPattern)
+            ->exists();
+
+        return ! $adaJadwal;
+    }
+
+    /**
+     * Mengambil daftar slot jam (dalam format dua digit jam 'HH', misal ['09', '14'])
+     * yang sudah terisi / penuh pada tanggal tertentu.
+     * Pemesanan berstatus 'Cancel' diabaikan sehingga slot otomatis terbuka kembali.
+     *
+     * @return array<int, string>
+     */
+    public function getSlotTerisiPadaTanggal(string $tanggal): array
+    {
+        $jamPemesanan = Pemesanan::whereNotIn('status_pengerjaan', ['Cancel'])
+            ->whereDate('tgl_survei_diminta', $tanggal)
+            ->pluck('jam_survei_diminta')
+            ->map(function ($time) {
+                $parts = explode(':', (string) $time);
+
+                return str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+            })
+            ->filter()
+            ->toArray();
+
+        $jamJadwal = JadwalPenugasan::whereHas('pemesanan', function ($q) {
+            $q->whereNotIn('status_pengerjaan', ['Cancel']);
+        })
+            ->whereDate('tgl_survei', $tanggal)
+            ->pluck('jam_survei')
+            ->map(function ($time) {
+                $parts = explode(':', (string) $time);
+
+                return str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+            })
+            ->filter()
+            ->toArray();
+
+        return array_values(array_unique(array_filter(array_merge($jamPemesanan, $jamJadwal))));
     }
 
     /**

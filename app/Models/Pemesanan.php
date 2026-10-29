@@ -32,6 +32,12 @@ class Pemesanan extends Model
         'jam_survei_diminta',
         'harga_estimasi',
         'harga_final',
+        'wajib_dp',
+        'nominal_dp',
+        'status_dp',
+        'bukti_dp',
+        'tgl_bayar_dp',
+        'catatan_dp',
         'status_pengerjaan',
         'status_pembayaran',
         'alasan_pembatalan',
@@ -48,6 +54,9 @@ class Pemesanan extends Model
             'tgl_survei_diminta' => 'date',
             'harga_estimasi' => 'decimal:2',
             'harga_final' => 'decimal:2',
+            'wajib_dp' => 'boolean',
+            'nominal_dp' => 'decimal:2',
+            'tgl_bayar_dp' => 'datetime',
             'ukuran_area' => 'decimal:2',
             'batas_konfirmasi' => 'datetime',
             'tgl_pemesanan' => 'datetime',
@@ -264,6 +273,53 @@ class Pemesanan extends Model
     public function latestBuktiPembayaran(): ?BuktiPembayaran
     {
         return $this->buktiPembayarans()->latest('id_bukti_pembayaran')->first();
+    }
+
+    /**
+     * Cek apakah pemesanan ini mewajibkan Down Payment (nominal >= 10 juta).
+     */
+    public function isWajibDp(): bool
+    {
+        return (bool) $this->wajib_dp;
+    }
+
+    /**
+     * Cek apakah Down Payment sudah lunas (atau tidak mewajibkan DP).
+     */
+    public function isDpLunas(): bool
+    {
+        return ! $this->wajib_dp || $this->status_dp === 'Lunas';
+    }
+
+    /**
+     * Menentukan apakah pesanan ini sudah memenuhi syarat untuk dijadwalkan survei lapangan.
+     * Pesanan >= 10jt wajib lunas DP terlebih dahulu.
+     */
+    public function canScheduleSurvei(): bool
+    {
+        return ! $this->wajib_dp || $this->status_dp === 'Lunas';
+    }
+
+    /**
+     * Menghitung sisa nominal pelunasan setelah dipotong DP yang sudah lunas.
+     * Menggunakan harga_final jika sudah disetujui, atau harga_estimasi sebagai acuan.
+     */
+    public function getSisaPelunasanAttribute(): float
+    {
+        $total = (float) ($this->harga_final ?? $this->harga_estimasi ?? 0);
+        $dpLunas = ($this->wajib_dp && $this->status_dp === 'Lunas') ? (float) $this->nominal_dp : 0;
+
+        return max(0, $total - $dpLunas);
+    }
+
+    /**
+     * Menghitung estimasi sisa pelunasan berdasarkan nominal kesepakatan survei yang diajukan.
+     */
+    public function hitungSisaDariPengajuan(float|int $hargaDiajukan): float
+    {
+        $dpLunas = ($this->wajib_dp && $this->status_dp === 'Lunas') ? (float) $this->nominal_dp : 0;
+
+        return max(0, (float) $hargaDiajukan - $dpLunas);
     }
 
     /**

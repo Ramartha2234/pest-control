@@ -130,6 +130,63 @@
                     </div>
                 @endif
 
+                {{-- Alert Khusus Down Payment (DP 10%) untuk Pesanan >= 10 Juta --}}
+                @if ($pemesanan->wajib_dp && $stVal !== 'Cancel')
+                    @if ($pemesanan->status_dp === 'Lunas')
+                        <div class="rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 sm:p-6 text-xs text-emerald-950 shadow-sm space-y-3">
+                            <div class="flex flex-col items-center justify-center text-center gap-2 pb-2.5 border-b border-emerald-200/80">
+                                <h4 class="font-extrabold text-sm sm:text-base text-emerald-950">
+                                    Pembayaran Down Payment (DP 10%) Terverifikasi
+                                </h4>
+                                <span class="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-white text-emerald-800 text-xs font-bold border border-emerald-200 shadow-2xs tracking-wide">DP Lunas</span>
+                            </div>
+                            <p class="text-emerald-800 leading-relaxed text-center max-w-xl mx-auto">
+                                Pembayaran DP sebesar <b>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</b> telah diverifikasi dan dicocokkan dengan mutasi bank oleh admin pada <b>{{ $pemesanan->tgl_bayar_dp?->translatedFormat('d F Y H:i') ?? '-' }} WITA</b>.
+                            </p>
+                            @if ($pemesanan->bukti_dp)
+                                <div class="pt-1 flex justify-center">
+                                    <a href="{{ route('dokumen.dp', ['pemesanan' => $pemesanan->id_pemesanan, 'kode' => $kodePemesanan]) }}" target="_blank"
+                                       class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-95">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Lihat / Unduh Bukti Transfer DP Resmi
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+                    @else
+                        <div class="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100/70 p-5 sm:p-6 text-xs text-amber-950 shadow-sm space-y-3">
+                            <div class="flex flex-col items-center justify-center text-center gap-2 pb-2.5 border-b border-amber-200/80">
+                                <h4 class="font-extrabold text-sm sm:text-base text-amber-950">
+                                    Menunggu Pembayaran Down Payment (DP 10%)
+                                </h4>
+                                <span class="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-white text-amber-800 text-xs font-bold border border-amber-200 shadow-2xs tracking-wide">Wajib DP</span>
+                            </div>
+                            <p class="text-amber-800 leading-relaxed text-center max-w-xl mx-auto">
+                                Pesanan ini bernilai skala besar (≥ Rp 10.000.000). Sesuai ketentuan, <b>survei lokasi teknisi baru dapat dijadwalkan setelah DP 10% sebesar Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }} diterima & diverifikasi admin</b>.
+                            </p>
+                            <div class="rounded-xl bg-white p-3.5 border border-amber-200 text-slate-800 space-y-1 max-w-md mx-auto text-left">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rekening Resmi Transfer DP:</span>
+                                <div class="text-xs font-bold text-slate-900">
+                                    {{ \App\Models\Pengaturan::get('bank_name', config('pestcontrol.bank_name', 'Bank Central Asia (BCA)')) }}: 
+                                    <span class="font-mono text-emerald-800 text-sm font-black">{{ \App\Models\Pengaturan::get('bank_account_number', config('pestcontrol.bank_account_number', '123-456-7890')) }}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500">Atas Nama: <strong class="text-slate-800">{{ \App\Models\Pengaturan::get('bank_account_holder', config('pestcontrol.bank_account_holder', 'CV. Ambius Indonesia')) }}</strong></div>
+                                <div class="text-[11px] text-slate-500">Berita Transfer: <strong class="text-emerald-800 font-mono">{{ $kodePemesanan }}</strong></div>
+                            </div>
+                            <div class="pt-1 flex justify-center">
+                                <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', \App\Models\Pengaturan::get('whatsapp_number', config('pestcontrol.whatsapp_number'))) }}?text=Halo%20Admin%20CV.%20Ambius,%20saya%20sudah%20transfer%20DP%2010%25%20sebesar%20Rp%20{{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}%20untuk%20Kode%20Pemesanan:%20{{ $kodePemesanan }}.%20Berikut%20bukti%20transfernya."
+                                   target="_blank" rel="noopener"
+                                   class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 font-bold text-white shadow-sm transition active:scale-95">
+                                    Konfirmasi Transfer DP via WhatsApp
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+                @endif
+
                 {{-- Alert Khusus: Nego Harga / Pengajuan Lapangan Ditolak Admin --}}
                 @if ($hasilSurvei && $hasilSurvei->status_verifikasi === 'Ditolak')
                     <div class="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-xs text-amber-900 shadow-sm space-y-2">
@@ -347,8 +404,26 @@
                                 </div>
                             @endif
 
+                            @if ($pemesanan->wajib_dp)
+                                <div class="flex items-center justify-between py-1 border-t border-slate-100 pt-2">
+                                    <div>
+                                        <span class="text-slate-700 font-bold block">Down Payment (DP 10%)</span>
+                                        <span class="text-[10px] text-amber-700 font-medium block">Wajib (Nominal ≥ 10jt)</span>
+                                    </div>
+                                    <span class="text-xs font-black text-amber-900">
+                                        Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between py-1">
+                                    <span class="text-slate-500 font-medium">Status Verifikasi DP</span>
+                                    <span class="rounded-full border px-2.5 py-0.5 text-[10px] font-bold {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200' }}">
+                                        {{ $pemesanan->status_dp === 'Lunas' ? 'Lunas & Terverifikasi' : 'Menunggu Pembayaran' }}
+                                    </span>
+                                </div>
+                            @endif
+
                             <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                                <span class="text-slate-500 font-medium">Status Pembayaran</span>
+                                <span class="text-slate-500 font-medium">Status Pelunasan Akhir</span>
                                 <span class="rounded-full border px-2.5 py-0.5 text-[11px] font-bold {{ $pbColor }}">
                                     {{ $pbVal }}
                                 </span>
@@ -358,6 +433,27 @@
                         {{-- Dokumen Unduh Resmi (HANYA status Disetujui via route controller) --}}
                         <div class="pt-4 border-t border-slate-100 space-y-2.5">
                             <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unduh Dokumen Resmi</span>
+
+                            {{-- 0. Bukti Transfer Down Payment (DP 10%) jika ada --}}
+                            @if ($pemesanan->wajib_dp)
+                                @if ($pemesanan->bukti_dp && $pemesanan->status_dp === 'Lunas')
+                                    <a href="{{ route('dokumen.dp', ['pemesanan' => $pemesanan->id_pemesanan, 'kode' => $kodePemesanan]) }}" target="_blank"
+                                       class="group w-full flex items-center justify-between p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 transition text-xs">
+                                        <div>
+                                            <span class="font-bold text-amber-950 block">Bukti Transfer DP (10%)</span>
+                                            <span class="text-[10px] text-amber-800 block">Diverifikasi oleh Admin</span>
+                                        </div>
+                                        <span class="inline-flex items-center justify-center rounded-lg bg-white border border-amber-400 px-3 py-1 text-[11px] font-bold text-amber-800 shadow-2xs group-hover:bg-amber-700 group-hover:text-white group-hover:border-amber-700 transition">
+                                            Lihat Bukti
+                                        </span>
+                                    </a>
+                                @else
+                                    <div class="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-xs">
+                                        <span class="font-medium text-slate-500">Bukti Transfer DP (10%)</span>
+                                        <span class="text-[11px] font-semibold text-slate-400 italic">Belum Diverifikasi</span>
+                                    </div>
+                                @endif
+                            @endif
 
                             {{-- 1. Work Order --}}
                             @if ($wo && $wo->status_verifikasi === 'Disetujui')

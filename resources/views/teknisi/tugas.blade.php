@@ -158,12 +158,20 @@
                             </div>
                         @endif
 
-                        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                            <div class="text-xs">
-                                <span class="text-slate-400">Harga Acuan/Final: </span>
-                                <span class="font-extrabold text-slate-800">
-                                    Rp {{ number_format($item->harga_final ?? $item->harga_estimasi, 0, ',', '.') }}
-                                </span>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
+                            <div class="text-xs space-y-0.5">
+                                <div>
+                                    <span class="text-slate-400">Harga Acuan/Final: </span>
+                                    <span class="font-extrabold text-slate-800">
+                                        Rp {{ number_format($item->harga_final ?? $item->harga_estimasi, 0, ',', '.') }}
+                                    </span>
+                                </div>
+                                @if ($item->wajib_dp && $item->status_dp === 'Lunas')
+                                    <div class="text-[11px] font-semibold text-emerald-800 flex items-center gap-1.5 flex-wrap">
+                                        <span class="px-2 py-0.5 rounded bg-emerald-100 border border-emerald-200 text-[10px] font-bold">DP 10% Lunas</span>
+                                        <span>Sisa: <b class="font-extrabold text-emerald-900">Rp {{ number_format($item->sisa_pelunasan, 0, ',', '.') }}</b></span>
+                                    </div>
+                                @endif
                             </div>
 
                             <a href="{{ route('teknisi.pemesanan.show', $item->id_pemesanan) }}"

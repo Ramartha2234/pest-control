@@ -511,4 +511,31 @@ class PemesananController extends Controller
         return redirect()->route('admin.pemesanan.show', $pemesanan->id_pemesanan)
             ->with('success', 'Bukti pengerjaan berhasil diunggah.');
     }
+
+    /**
+     * Verifikasi Down Payment (DP) dan upload bukti transfer DP oleh Admin.
+     */
+    public function verifikasiDp(Request $request, Pemesanan $pemesanan): RedirectResponse
+    {
+        $request->validate([
+            'bukti_dp' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'catatan_dp' => ['nullable', 'string', 'max:500'],
+        ], [
+            'bukti_dp.required' => 'File bukti transfer DP wajib diunggah.',
+            'bukti_dp.image' => 'File bukti transfer harus berupa gambar (JPG, JPEG, PNG, WEBP).',
+            'bukti_dp.max' => 'Ukuran file bukti transfer maksimal 5 MB.',
+        ]);
+
+        $path = $request->file('bukti_dp')->store('bukti_dp', 'public');
+
+        $this->statusService->verifikasiDp(
+            $pemesanan,
+            Auth::id(),
+            $path,
+            $request->input('catatan_dp')
+        );
+
+        return redirect()->route('admin.pemesanan.show', $pemesanan->id_pemesanan)
+            ->with('success', 'Pembayaran Down Payment (DP 10%) berhasil diverifikasi dan bukti transfer telah tersimpan.');
+    }
 }

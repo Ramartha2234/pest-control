@@ -385,21 +385,33 @@
                         <div id="time_picker_popover" class="hidden absolute left-0 right-0 z-30 mt-1.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
                             <div class="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
                                 <span class="text-[11px] font-bold text-slate-800">
-                                    Gulir / Pilih Waktu (24 Jam)
+                                    Pilih Waktu Kedatangan (24 Jam)
                                 </span>
                                 <span class="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">WITA</span>
+                            </div>
+
+                            {{-- Banner Status Ketersediaan Slot --}}
+                            <div class="mb-2 p-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px] flex items-center justify-between">
+                                <div class="flex items-center gap-1.5 text-slate-700">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span class="font-medium text-[11px]">1 Slot Jam = Maks 1 Pelanggan</span>
+                                </div>
+                                <span id="slot_status_badge" class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                                    Memeriksa Slot...
+                                </span>
                             </div>
 
                             <div class="grid grid-cols-2 gap-3 text-center">
                                 {{-- Kolom Scroll Jam (06:00 sampai 22:00) --}}
                                 <div>
-                                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Jam</span>
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Jam (Slot)</span>
                                     <div id="scroll_col_jam" class="h-44 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
                                         @for ($h = 6; $h <= 22; $h++)
                                             @php $hVal = sprintf('%02d', $h); @endphp
                                             <button type="button" data-hour="{{ $hVal }}"
-                                                    class="hour-opt w-full py-1.5 text-xs font-bold rounded-lg transition {{ $defaultHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
-                                                {{ $hVal }}:00
+                                                    class="hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between {{ $defaultHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
+                                                <span>{{ $hVal }}:00</span>
+                                                <span class="hour-slot-badge text-[9px] font-bold hidden"></span>
                                             </button>
                                         @endfor
                                     </div>
@@ -430,7 +442,7 @@
                             </div>
                         </div>
 
-                        <p class="mt-1 text-[11px] text-slate-400">Klik untuk menggulir jam & menit kedatangan teknisi (13:00, 14:00, dst.).</p>
+                        <p class="mt-1 text-[11px] text-slate-400">1 Slot Jam = Maksimal 1 Pelanggan. Jam bertanda "Penuh" tidak dapat dipilih.</p>
                         @error('jam_survei_diminta')
                             <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
                         @enderror
@@ -447,6 +459,14 @@
                         <div class="text-right">
                             <div class="text-xl sm:text-2xl font-black text-emerald-800" id="displayEstimasi">Rp 0</div>
                             <span class="text-[10px] text-emerald-700 font-semibold block" id="displayKalkulasiBreakdown">Belum termasuk diskon khusus negosiasi</span>
+                        </div>
+                    </div>
+
+                    {{-- Alert Dinamis Wajib DP jika >= 10 Juta --}}
+                    <div id="dpNoticeBox" class="hidden mt-4 pt-3 border-t border-emerald-200/80 text-left">
+                        <div class="rounded-xl bg-amber-500/10 p-3 border border-amber-500/30 text-amber-900 text-[11px] leading-relaxed">
+                            <b class="font-bold text-amber-950">Ketentuan Down Payment (DP 10%):</b>
+                            Karena estimasi biaya mencapai nominal Rp 10.000.000 ke atas, sistem memberlakukan pembayaran DP 10% (<b id="dpAmountText" class="text-amber-950 font-bold">Rp 0</b>) sebelum pelaksanaan survei teknisi. Instruksi transfer dan nomor rekening perusahaan akan otomatis ditampilkan setelah formulir ini dikirim.
                         </div>
                     </div>
                 </div>
@@ -522,6 +542,23 @@
             displayEstimasi.textContent = 'Rp ' + Math.round(finalEst).toLocaleString('id-ID');
             if (displayKalkulasiBreakdown) {
                 displayKalkulasiBreakdown.textContent = breakdownText;
+            }
+
+            const DP_THRESHOLD = {{ config('pestcontrol.dp_threshold', 10000000) }};
+            const dpNoticeBox = document.getElementById('dpNoticeBox');
+            const dpAmountText = document.getElementById('dpAmountText');
+            if (finalEst >= DP_THRESHOLD) {
+                const dpNominal = Math.round(finalEst * ({{ config('pestcontrol.dp_percentage', 10) }} / 100));
+                if (dpAmountText) {
+                    dpAmountText.textContent = 'Rp ' + dpNominal.toLocaleString('id-ID');
+                }
+                if (dpNoticeBox) {
+                    dpNoticeBox.classList.remove('hidden');
+                }
+            } else {
+                if (dpNoticeBox) {
+                    dpNoticeBox.classList.add('hidden');
+                }
             }
         }
 
@@ -680,6 +717,7 @@
                         if (calendarSelectedPreview) calendarSelectedPreview.textContent = `${selectedDate.getDate()} ${indoMonths[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
                         renderCalendar();
                         datePickerPopover.classList.add('hidden');
+                        fetchSlotAvailability(hiddenTgl.value);
                     });
                 }
 
@@ -763,6 +801,98 @@
             if (activeM) activeM.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
 
+        function fetchSlotAvailability(dateStr) {
+            if (!timePickerPopover || !dateStr) return;
+            const slotStatusBadge = document.getElementById('slot_status_badge');
+            if (slotStatusBadge) {
+                slotStatusBadge.textContent = 'Memeriksa Slot...';
+                slotStatusBadge.className = 'text-[10px] font-extrabold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-md';
+            }
+
+            fetch(`{{ route('pemesanan.cek-slot') }}?tanggal=${encodeURIComponent(dateStr)}`)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    const bookedHours = Array.isArray(data.slot_terisi) ? data.slot_terisi : [];
+                    const hourBtns = timePickerPopover.querySelectorAll('.hour-opt');
+                    let bookedCount = 0;
+
+                    hourBtns.forEach(function (btn) {
+                        const hourVal = btn.getAttribute('data-hour');
+                        const badge = btn.querySelector('.hour-slot-badge');
+                        const isBooked = bookedHours.includes(hourVal);
+
+                        if (isBooked) {
+                            bookedCount++;
+                            btn.disabled = true;
+                            btn.setAttribute('title', 'Slot jam ini sudah dibooking pelanggan lain (1 Slot Jam = Maksimal 1 Pelanggan).');
+                            btn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'opacity-60', 'line-through');
+                            btn.classList.remove('bg-emerald-600', 'text-white', 'text-slate-700', 'hover:bg-slate-200/80');
+                            if (badge) {
+                                badge.textContent = 'Penuh';
+                                badge.className = 'hour-slot-badge text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5';
+                                badge.classList.remove('hidden');
+                            }
+                        } else {
+                            btn.disabled = false;
+                            btn.removeAttribute('title');
+                            btn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'opacity-60', 'line-through');
+                            if (hourVal === currentHour) {
+                                btn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                                btn.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
+                            } else {
+                                btn.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                                btn.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                            }
+                            if (badge) {
+                                badge.textContent = '';
+                                badge.classList.add('hidden');
+                            }
+                        }
+                    });
+
+                    // Update ringkasan status slot
+                    if (slotStatusBadge) {
+                        if (bookedCount > 0) {
+                            slotStatusBadge.textContent = `${bookedCount} Jam Penuh`;
+                            slotStatusBadge.className = 'text-[10px] font-extrabold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-md';
+                        } else {
+                            slotStatusBadge.textContent = 'Semua Jam Tersedia';
+                            slotStatusBadge.className = 'text-[10px] font-extrabold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md';
+                        }
+                    }
+
+                    // Jika jam yang sedang dipilih ternyata PENUH, otomatis alihkan ke jam pertama yang tersedia!
+                    if (bookedHours.includes(currentHour)) {
+                        let firstAvailableBtn = null;
+                        hourBtns.forEach(function (btn) {
+                            if (!btn.disabled && !firstAvailableBtn) {
+                                firstAvailableBtn = btn;
+                            }
+                        });
+
+                        if (firstAvailableBtn) {
+                            currentHour = firstAvailableBtn.getAttribute('data-hour');
+                            hourBtns.forEach(function (b) {
+                                if (!b.disabled) {
+                                    b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                                    b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                                }
+                            });
+                            firstAvailableBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                            firstAvailableBtn.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
+                            updateTimeDisplay();
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.error('Gagal memeriksa ketersediaan slot:', err);
+                    if (slotStatusBadge) {
+                        slotStatusBadge.textContent = 'Slot Siap Dipilih';
+                        slotStatusBadge.className = 'text-[10px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md';
+                    }
+                });
+        }
+
         if (timePickerTrigger && timePickerPopover) {
             timePickerTrigger.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -772,6 +902,9 @@
                     timePickerPopover.classList.remove('hidden');
                     if (tarifPickerPopover) tarifPickerPopover.classList.add('hidden');
                     if (datePickerPopover) datePickerPopover.classList.add('hidden');
+                    if (hiddenTgl && hiddenTgl.value) {
+                        fetchSlotAvailability(hiddenTgl.value);
+                    }
                     setTimeout(scrollToActive, 60);
                 } else {
                     timePickerPopover.classList.add('hidden');
@@ -796,9 +929,12 @@
                 btn.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (this.disabled) return;
                     timePickerPopover.querySelectorAll('.hour-opt').forEach(function (b) {
-                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
-                        b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                        if (!b.disabled) {
+                            b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                            b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                        }
                     });
                     this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
                     this.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
@@ -824,6 +960,11 @@
             });
 
             updateTimeDisplay();
+
+            // Pengecekan ketersediaan slot awal saat halaman selesai dimuat
+            if (hiddenTgl && hiddenTgl.value) {
+                fetchSlotAvailability(hiddenTgl.value);
+            }
         }
     });
 </script>

@@ -129,7 +129,19 @@
                                 {{ $teknisiNama }}
                             </td>
                             <td class="px-5 py-3.5 text-right font-extrabold text-gray-900 whitespace-nowrap">
-                                Rp {{ number_format($booking->harga_final ?? ($booking->harga_estimasi ?? $booking->nominal), 0, ',', '.') }}
+                                <div>Rp {{ number_format($booking->harga_final ?? ($booking->harga_estimasi ?? $booking->nominal), 0, ',', '.') }}</div>
+                                @if ($booking->wajib_dp)
+                                    <div class="mt-0.5 space-y-0.5">
+                                        <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded {{ $booking->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                            DP 10%: {{ $booking->status_dp === 'Lunas' ? 'Lunas' : 'Belum' }}
+                                        </span>
+                                        @if ($booking->status_dp === 'Lunas')
+                                            <div class="text-[10px] text-gray-500 font-semibold">
+                                                Sisa: <span class="text-emerald-700 font-bold">Rp {{ number_format($booking->sisa_pelunasan, 0, ',', '.') }}</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-5 py-3.5 text-center whitespace-nowrap">
                                 <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $stColor }}">

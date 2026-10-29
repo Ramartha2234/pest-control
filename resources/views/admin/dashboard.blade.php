@@ -255,9 +255,19 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3.5 text-center whitespace-nowrap">
-                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                                    Belum Lunas
-                                </span>
+                                @if ($booking->wajib_dp && $booking->status_dp === 'Lunas')
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                        DP Lunas
+                                    </span>
+                                @elseif ($booking->wajib_dp)
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                        Wajib DP
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                        Belum Lunas
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-3.5 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.pemesanan.show', $booking->id) }}" class="rounded bg-primary-50 px-2.5 py-1.5 text-xs font-bold text-primary-600 transition hover:bg-primary-500 hover:text-white">
@@ -314,9 +324,15 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3.5 text-center whitespace-nowrap">
-                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                                    {{ is_object($booking->is_lunas) ? $booking->is_lunas->label() : ($booking->status_pembayaran ?? $booking->is_lunas) }}
-                                </span>
+                                @if ($booking->wajib_dp && $booking->status_dp === 'Lunas')
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                        DP Lunas
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                        {{ is_object($booking->is_lunas) ? $booking->is_lunas->label() : ($booking->status_pembayaran ?? $booking->is_lunas) }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-3.5 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.pemesanan.show', $booking->id) }}" class="rounded bg-primary-50 px-2.5 py-1.5 text-xs font-bold text-primary-600 transition hover:bg-primary-500 hover:text-white">

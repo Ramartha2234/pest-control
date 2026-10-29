@@ -94,6 +94,18 @@
                         Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }} <span class="text-[10px] font-normal text-slate-500">({{ ($pemesanan->tipe_area ?? 'Indoor') === 'Outdoor' ? 'Termasuk Outdoor +100k' : 'Tarif Dasar' }})</span>
                     @endif
                 </p>
+                @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas')
+                    <div class="mt-2 pt-2 border-t border-slate-200/70 text-[11px] space-y-0.5">
+                        <div class="flex items-center justify-between text-slate-500">
+                            <span>DP 10% (Lunas Kantor):</span>
+                            <span class="font-bold text-emerald-700">-Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex items-center justify-between font-bold text-slate-800 pt-0.5">
+                            <span>Sisa yang Wajib Ditagih:</span>
+                            <span class="text-xs font-black text-emerald-800">Rp {{ number_format($pemesanan->sisa_pelunasan, 0, ',', '.') }}</span>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -274,6 +286,13 @@
                         </div>
                     </div>
 
+                    @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas')
+                        <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] bg-slate-50 p-2 rounded-lg">
+                            <span class="text-slate-500">Estimasi Sisa Ditagih (Setelah Potong DP 10%):</span>
+                            <span class="font-extrabold text-emerald-800">Rp {{ number_format($pemesanan->hitungSisaDariPengajuan($latestSurvei->harga_diajukan), 0, ',', '.') }}</span>
+                        </div>
+                    @endif
+
                     @if ($latestSurvei->status_verifikasi === 'Ditolak')
                         <div class="rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-rose-900 mt-2">
                             <span class="font-bold block text-[11px]">Alasan Penolakan Admin:</span>
@@ -295,7 +314,18 @@
                                 {{ ($pemesanan->tipe_area ?? 'Indoor') === 'Outdoor' ? 'Area Outdoor' : 'Area Indoor' }}
                             </span>
                         </div>
-                        <span class="block mt-1">Estimasi awal: <b>Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }}</b>. Masukkan nominal harga yang disepakati dengan pelanggan saat survei di lapangan.</span>
+                        <span class="block mt-1">Estimasi awal (sebelum DP): <b>Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }}</b>. Masukkan total nominal yang disepakati dengan pelanggan saat survei di lapangan.</span>
+                        @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas')
+                            <div class="mt-2 pt-2 border-t border-emerald-200/80 text-[11px] space-y-1">
+                                <div class="flex items-center justify-between font-semibold">
+                                    <span>DP 10% Terverifikasi Kantor:</span>
+                                    <span class="text-emerald-800 font-bold">Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }} (Lunas)</span>
+                                </div>
+                                <p class="text-[10px] text-emerald-800 leading-tight">
+                                    * Catatan: Acuan harga negosiasi tetap menggunakan estimasi awal (Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }}). Setelah harga total disetujui, pelanggan hanya perlu membayar sisanya (Total Kesepakatan – DP).
+                                </p>
+                            </div>
+                        @endif
                     </div>
 
                     @php
@@ -452,10 +482,27 @@
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Harga Kesepakatan Final (Rp) *</label>
-                        <input type="number" name="harga_diajukan" step="10000" min="10000" required
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                            Harga Kesepakatan Final (Rp) *
+                            <span class="text-slate-400 font-normal">(Total keseluruhan sebelum dipotong DP)</span>
+                        </label>
+                        <input type="number" name="harga_diajukan" id="harga_diajukan_input" step="10000" min="10000" required
                             value="{{ old('harga_diajukan', $latestSurvei?->harga_diajukan ?? $pemesanan->harga_estimasi) }}"
                             class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+                        @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas')
+                            <div class="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                                <div class="flex items-center justify-between gap-2 text-slate-500 text-[11px]">
+                                    <span>Nominal DP 10% Terbayar (BCA):</span>
+                                    <span class="font-bold text-emerald-700 whitespace-nowrap shrink-0 text-right">-Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2 font-bold text-slate-800 text-[11px] pt-1 border-t border-slate-200/70">
+                                    <span>Estimasi Sisa yang Akan Ditagih:</span>
+                                    <span id="preview_sisa_tagihan" class="text-xs font-black text-emerald-800 whitespace-nowrap shrink-0 text-right">
+                                        Rp {{ number_format($pemesanan->hitungSisaDariPengajuan(old('harga_diajukan', $latestSurvei?->harga_diajukan ?? $pemesanan->harga_estimasi)), 0, ',', '.') }}
+                                    </span>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     <div>
@@ -647,6 +694,32 @@
                         <span class="text-[10px] text-slate-400 font-semibold">Belum Diunggah</span>
                     @endif
                 </div>
+
+                {{-- Panduan Tagihan Pelunasan untuk Teknisi --}}
+                @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas')
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs space-y-2.5">
+                        <div class="flex flex-col items-center justify-center text-center gap-1.5 border-b border-emerald-200/80 pb-2.5">
+                            <span class="font-bold text-xs text-emerald-950">Rincian Penagihan Pelunasan Lapangan</span>
+                            <span class="inline-flex items-center justify-center px-3.5 py-0.5 rounded-full bg-white text-emerald-800 text-[10px] font-bold border border-emerald-200 shadow-2xs tracking-wide whitespace-nowrap">
+                                DP 10% Terbayar
+                            </span>
+                        </div>
+                        <div class="space-y-1.5 pt-0.5">
+                            <div class="flex items-center justify-between gap-3 text-slate-600 text-xs">
+                                <span>Total Harga Final (Acuan):</span>
+                                <span class="font-bold text-slate-800 whitespace-nowrap shrink-0 text-right">Rp {{ number_format($pemesanan->harga_final ?? $pemesanan->harga_estimasi, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 text-emerald-700 text-xs">
+                                <span>Potongan DP 10% (Transfer BCA):</span>
+                                <span class="font-bold whitespace-nowrap shrink-0 text-right">-Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 font-extrabold text-xs text-emerald-950 pt-2 border-t border-emerald-200/80">
+                                <span>Sisa yang Wajib Ditagih:</span>
+                                <span class="text-sm font-black text-emerald-800 whitespace-nowrap shrink-0 text-right">Rp {{ number_format($pemesanan->sisa_pelunasan, 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 @if ($latestBuktiBayar)
                     <div class="text-xs space-y-1 bg-slate-50 p-2 rounded-xl">
@@ -1022,6 +1095,19 @@
                 jamPopover.classList.add('hidden');
             }
         });
+
+        // Kalkulator Real-time Sisa Tagihan untuk Negosiasi Teknisi
+        const hargaInput = document.getElementById('harga_diajukan_input');
+        const sisaPreview = document.getElementById('preview_sisa_tagihan');
+        const nominalDp = {{ ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas') ? (float) $pemesanan->nominal_dp : 0 }};
+
+        if (hargaInput && sisaPreview && nominalDp > 0) {
+            hargaInput.addEventListener('input', function () {
+                const val = parseFloat(this.value) || 0;
+                const sisa = Math.max(0, val - nominalDp);
+                sisaPreview.textContent = 'Rp ' + sisa.toLocaleString('id-ID');
+            });
+        }
     });
 </script>
 @endpush

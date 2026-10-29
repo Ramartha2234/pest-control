@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/pesan', [PemesananController::class, 'create'])->name('pemesanan.create');
+Route::get('/pesan/cek-slot', [PemesananController::class, 'cekSlot'])->name('pemesanan.cek-slot');
 Route::post('/pesan', [PemesananController::class, 'store'])->name('pemesanan.store');
 Route::get('/pesan/konfirmasi/{pemesanan}', [PemesananController::class, 'confirmation'])->name('pemesanan.confirmation');
 
@@ -37,6 +38,7 @@ Route::post('/cek-status', [StatusController::class, 'show'])->name('status.show
 Route::get('/dokumen/kehadiran/{buktiKehadiran}', [DokumenController::class, 'showBuktiKehadiran'])->name('dokumen.kehadiran');
 Route::get('/dokumen/work-order/{workOrder}', [DokumenController::class, 'showWorkOrder'])->name('dokumen.wo');
 Route::get('/dokumen/pembayaran/{buktiPembayaran}', [DokumenController::class, 'showBuktiPembayaran'])->name('dokumen.pembayaran');
+Route::get('/dokumen/dp/{pemesanan}', [DokumenController::class, 'showBuktiDp'])->name('dokumen.dp');
 
 // Auth routes (Admin & Teknisi login)
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -49,6 +51,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // Manajemen Pemesanan
     Route::resource('pemesanan', AdminPemesananController::class)->except(['create', 'store']);
+    Route::post('pemesanan/{pemesanan}/verifikasi-dp', [AdminPemesananController::class, 'verifikasiDp'])->name('pemesanan.verifikasi-dp');
     Route::post('pemesanan/{pemesanan}/verifikasi-awal', [AdminPemesananController::class, 'verifikasiDanTugaskan'])->name('pemesanan.verifikasi-awal');
     Route::post('pemesanan/{pemesanan}/tolak-awal', [AdminPemesananController::class, 'tolakPemesanan'])->name('pemesanan.tolak-awal');
     Route::post('pemesanan/{pemesanan}/cancel', [AdminPemesananController::class, 'cancel'])->name('pemesanan.cancel');

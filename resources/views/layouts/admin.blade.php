@@ -61,7 +61,7 @@
             </a>
             <a href="{{ route('admin.profile.edit') }}"
                class="block px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition {{ request()->routeIs('admin.profile.edit') ? 'bg-primary-800 text-white font-bold shadow-sm ring-1 ring-white/10' : 'text-primary-100 hover:bg-primary-800/60 hover:text-white' }}">
-                Profil Akun
+                Pengaturan Sistem
             </a>
 
             {{-- Bottom Actions: Buka Halaman Publik & Logout --}}
@@ -83,7 +83,7 @@
     </aside>
 
     {{-- Main Area --}}
-    <div class="flex-1 flex flex-col min-h-screen">
+    <div class="flex-1 flex flex-col min-h-screen min-w-0">
         {{-- Top Bar --}}
         <header class="bg-white border-b border-gray-200 shadow-sm py-4 px-6 sm:px-8 flex items-center justify-between">
             <h2 class="text-lg font-bold text-gray-800">@yield('page_title', 'Dashboard')</h2>
@@ -120,7 +120,7 @@
         @endif
 
         {{-- Content Area --}}
-        <main class="flex-1 p-6 sm:p-8">
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
             @yield('content')
         </main>
     </div>

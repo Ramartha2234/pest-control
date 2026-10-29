@@ -2,6 +2,7 @@
 
 use App\Enums\StatusPelunasan;
 use App\Models\Pemesanan;
+use App\Models\Pengaturan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -87,4 +88,49 @@ test('admin can update password successfully', function () {
     $response->assertRedirect(route('admin.profile.edit'));
     $admin->refresh();
     expect(Hash::check('new-password-123', $admin->password))->toBeTrue();
+});
+
+test('admin can update company bank and whatsapp settings successfully', function () {
+    $admin = User::factory()->create();
+
+    $response = $this->actingAs($admin)
+        ->put('/admin/profile', [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'bank_name' => 'Bank Mandiri',
+            'bank_account_number' => '987-654-3210',
+            'bank_account_holder' => 'CV. Ambius Mandiri',
+            'whatsapp_number' => '6289999999999',
+        ]);
+
+    $response->assertRedirect(route('admin.profile.edit'));
+    expect(Pengaturan::get('bank_name'))->toBe('Bank Mandiri');
+    expect(Pengaturan::get('bank_account_number'))->toBe('987-654-3210');
+    expect(Pengaturan::get('bank_account_holder'))->toBe('CV. Ambius Mandiri');
+    expect(Pengaturan::get('whatsapp_number'))->toBe('6289999999999');
+});
+
+test('admin can update report signature names in system settings and see them on laporan', function () {
+    $admin = User::factory()->create();
+
+    $response = $this->actingAs($admin)
+        ->put('/admin/profile', [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'nama_accounting' => 'Dewi Sartika, S.E.',
+            'nama_direktur' => 'Hendra Kusuma, M.M.',
+        ]);
+
+    $response->assertRedirect(route('admin.profile.edit'));
+    expect(Pengaturan::get('nama_accounting'))->toBe('Dewi Sartika, S.E.');
+    expect(Pengaturan::get('nama_direktur'))->toBe('Hendra Kusuma, M.M.');
+
+    // Cek pada halaman laporan keuangan bahwa nama pejabat penandatangan ditampilkan
+    $this->actingAs($admin)
+        ->get(route('admin.laporan.index'))
+        ->assertSuccessful()
+        ->assertSee('Dewi Sartika, S.E.')
+        ->assertSee('Hendra Kusuma, M.M.')
+        ->assertSee('Accounting')
+        ->assertSee('Direktur');
 });

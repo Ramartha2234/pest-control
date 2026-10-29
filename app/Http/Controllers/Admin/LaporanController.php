@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pemesanan;
+use App\Models\Pengaturan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -62,6 +63,8 @@ class LaporanController extends Controller
         $totalRevenue = $allMatching->sum(fn ($item) => (float) ($item->harga_final ?? $item->harga_estimasi));
         $totalOrders = $allMatching->count();
         $avgTicket = $totalOrders > 0 ? ($totalRevenue / $totalOrders) : 0;
+        $totalDp = (float) $allMatching->where('wajib_dp', true)->where('status_dp', 'Lunas')->sum('nominal_dp');
+        $totalPelunasan = max(0, $totalRevenue - $totalDp);
 
         // Tahun tersedia untuk filter (database agnostic)
         $availableYears = Pemesanan::where('status_pengerjaan', 'Done')
@@ -86,7 +89,11 @@ class LaporanController extends Controller
             'totalRevenue' => $totalRevenue,
             'totalOrders' => $totalOrders,
             'avgTicket' => $avgTicket,
+            'totalDp' => $totalDp,
+            'totalPelunasan' => $totalPelunasan,
             'availableYears' => $availableYears,
+            'namaAccounting' => Pengaturan::get('nama_accounting', config('pestcontrol.nama_accounting', 'Siti Rahmawati, S.Ak.')),
+            'namaDirektur' => Pengaturan::get('nama_direktur', config('pestcontrol.nama_direktur', 'Budi Santoso, S.T.')),
         ]);
     }
 }
