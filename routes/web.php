@@ -80,6 +80,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // Laporan Pendapatan (Hanya Done + Lunas)
     Route::get('laporan', [AdminLaporanController::class, 'index'])->name('laporan.index');
+    Route::get('laporan/cetak', [AdminLaporanController::class, 'cetak'])->name('laporan.cetak');
 
     // Profil Admin
     Route::get('profile', [AdminProfileController::class, 'edit'])->name('profile.edit');

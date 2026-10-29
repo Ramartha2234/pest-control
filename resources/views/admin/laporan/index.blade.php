@@ -48,9 +48,11 @@
                 Tampilkan
             </button>
 
-            <button type="button" onclick="window.print()" class="rounded-xl border border-gray-300 bg-white hover:bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition inline-flex items-center justify-center whitespace-nowrap">
-                Cetak / Ekspor PDF
-            </button>
+            <a href="{{ route('admin.laporan.cetak', ['view_type' => $viewType, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" target="_blank"
+               class="rounded-xl border border-gray-300 bg-white hover:bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition inline-flex items-center justify-center whitespace-nowrap gap-1.5">
+                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <span>Cetak / Ekspor PDF</span>
+            </a>
         </form>
     </div>
 
@@ -107,7 +109,7 @@
                         <th class="px-4 py-3">Layanan & Properti</th>
                         <th class="px-4 py-3">Teknisi & Jadwal</th>
                         <th class="px-4 py-3 text-right">Pendapatan</th>
-                        <th class="px-4 py-3 text-center print:hidden">Dokumen & Bukti</th>
+                        <th class="px-4 py-3 text-center">Dokumen & Bukti</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 text-gray-700">
@@ -158,7 +160,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-center align-top print:hidden">
+                            <td class="px-4 py-3 text-center align-top">
                                 <div class="flex flex-col items-center justify-center gap-1.5">
                                     @if ($wo)
                                         <a href="{{ route('dokumen.wo', $wo->id_wo) }}" target="_blank"
@@ -205,70 +207,9 @@
             </table>
         </div>
 
-        <div class="p-4 border-t border-gray-100 print:hidden">
+        <div class="p-4 border-t border-gray-100">
             {{ $pemesanans->links() }}
         </div>
     </div>
-
-    {{-- Lembar Pengesahan / Tanda Tangan (Ekspor PDF & Cetak) --}}
-    <div class="ttd-container mt-6 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm print:shadow-none print:border-none print:p-0 print:mt-12">
-        <div class="flex items-start justify-between text-xs text-gray-800">
-            {{-- Pojok Kiri Bawah: Accounting --}}
-            <div class="text-center w-64">
-                <p class="font-medium text-gray-500 print:text-gray-700">Dibuat &amp; Diverifikasi,</p>
-                <p class="font-bold uppercase tracking-wider text-gray-900 mt-1">Accounting</p>
-                
-                {{-- Ruang Kosong Tanda Tangan --}}
-                <div style="height: 80px; min-height: 80px;"></div>
-
-                <p class="font-bold text-gray-900 border-b border-gray-800 inline-block pb-0.5 px-4 min-w-[180px]">
-                    {{ $namaAccounting }}
-                </p>
-                <p class="text-[11px] text-gray-500 mt-1">Bagian Keuangan</p>
-            </div>
-
-            {{-- Pojok Kanan Bawah: Direktur --}}
-            <div class="text-center w-64">
-                <p class="font-medium text-gray-500 print:text-gray-700">
-                    {{ \Carbon\Carbon::now()->locale('id')->translatedFormat('d F Y') }}
-                </p>
-                <p class="font-bold uppercase tracking-wider text-gray-900 mt-1">
-                    Direktur
-                </p>
-
-                {{-- Ruang Kosong Tanda Tangan --}}
-                <div style="height: 80px; min-height: 80px;"></div>
-
-                <p class="font-bold text-gray-900 border-b border-gray-800 inline-block pb-0.5 px-4 min-w-[180px]">
-                    {{ $namaDirektur }}
-                </p>
-                <p class="text-[11px] text-gray-500 mt-1">Direktur Utama</p>
-            </div>
-        </div>
-    </div>
 </div>
-
-<style>
-@media print {
-    aside, header, button, form, .print\:hidden, .no-print {
-        display: none !important;
-    }
-    th.print\:hidden, td.print\:hidden {
-        display: none !important;
-    }
-    body, main {
-        background: white !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    .shadow-sm, .shadow-md {
-        box-shadow: none !important;
-        border: 1px solid #e5e7eb !important;
-    }
-    .ttd-container {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-}
-</style>
 @endsection

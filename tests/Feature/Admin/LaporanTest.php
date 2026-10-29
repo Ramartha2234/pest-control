@@ -125,12 +125,37 @@ test('admin can update report signature names in system settings and see them on
     expect(Pengaturan::get('nama_accounting'))->toBe('Dewi Sartika, S.E.');
     expect(Pengaturan::get('nama_direktur'))->toBe('Hendra Kusuma, M.M.');
 
-    // Cek pada halaman laporan keuangan bahwa nama pejabat penandatangan ditampilkan
+    // Cek pada halaman cetak laporan keuangan (PDF) bahwa nama pejabat penandatangan ditampilkan
     $this->actingAs($admin)
-        ->get(route('admin.laporan.index'))
+        ->get(route('admin.laporan.cetak'))
         ->assertSuccessful()
         ->assertSee('Dewi Sartika, S.E.')
         ->assertSee('Hendra Kusuma, M.M.')
         ->assertSee('Accounting')
         ->assertSee('Direktur');
+
+    // Pastikan tanda tangan sudah dipindahkan dan tidak tampil lagi di layar web dashboard laporan
+    $this->actingAs($admin)
+        ->get(route('admin.laporan.index'))
+        ->assertSuccessful()
+        ->assertDontSee('Dewi Sartika, S.E.')
+        ->assertDontSee('Hendra Kusuma, M.M.');
+});
+
+test('admin can access standalone a4 print view for report', function () {
+    $admin = User::factory()->create();
+
+    Pemesanan::factory()->create([
+        'nominal' => 3500000,
+        'is_lunas' => StatusPelunasan::Lunas,
+        'tanggal_survey' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.laporan.cetak', ['view_type' => 'monthly']))
+        ->assertSuccessful()
+        ->assertSee('LAPORAN PENDAPATAN KEUANGAN')
+        ->assertSee('Halaman 1')
+        ->assertSee('CV. AMBIUS INDONESIA')
+        ->assertSee('Rp 3.500.000');
 });
