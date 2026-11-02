@@ -73,6 +73,9 @@ class PemesananController extends Controller
      */
     public function confirmation(Pemesanan $pemesanan): View
     {
+        $this->statusService->autoCancelExpired();
+        $pemesanan->refresh();
+
         $pemesanan->load(['pelanggan', 'tarifLayanan']);
 
         return view('pemesanan.confirmation', [

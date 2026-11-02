@@ -104,3 +104,25 @@ test('artisan command auto-cancels unverified bookings after 3 days', function (
     expect($recentUnverified->status_pengerjaan)->toBe('Pending');
     expect($recentUnverified->status_pembayaran)->toBe('Belum Lunas');
 });
+
+test('expired unverified bookings are automatically cancelled in real-time when admin accesses dashboard or list', function () {
+    $admin = User::factory()->create();
+
+    $expiredOrder = Pemesanan::factory()->create([
+        'is_fiktif' => null,
+        'status_pengerjaan' => 'Pending',
+        'is_lunas' => StatusPelunasan::BelumLunas,
+        'created_at' => now()->subDays(4),
+        'batas_konfirmasi' => now()->subDay(),
+    ]);
+
+    expect($expiredOrder->status_pengerjaan)->toBe('Pending');
+
+    // Admin mengakses dashboard
+    $this->actingAs($admin)->get(route('admin.dashboard'))->assertSuccessful();
+
+    $expiredOrder->refresh();
+    expect($expiredOrder->status_pengerjaan)->toBe('Cancel');
+    expect($expiredOrder->is_fiktif)->toBeTrue();
+    expect($expiredOrder->dibatalkan_oleh)->toBe('Sistem');
+});

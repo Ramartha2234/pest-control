@@ -28,6 +28,9 @@ class PemesananController extends Controller
      */
     public function index(Request $request): View
     {
+        // Jalankan auto-cancel real-time untuk pemesanan pending yang kedaluwarsa
+        $this->statusService->autoCancelExpired();
+
         $statusPengerjaan = $request->query('status_pengerjaan') ?? $request->query('status');
         $statusPembayaran = $request->query('status_pembayaran');
         $search = trim($request->query('search', ''));
@@ -73,6 +76,10 @@ class PemesananController extends Controller
      */
     public function show(Pemesanan $pemesanan): View
     {
+        // Jalankan auto-cancel real-time jika pesanan ini atau pesanan lain telah melewati batas konfirmasi
+        $this->statusService->autoCancelExpired();
+        $pemesanan->refresh();
+
         $pemesanan->load([
             'pelanggan',
             'tarifLayanan',

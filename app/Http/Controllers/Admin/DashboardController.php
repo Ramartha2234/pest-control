@@ -8,16 +8,24 @@ use App\Models\BuktiPembayaran;
 use App\Models\HasilSurvei;
 use App\Models\Pemesanan;
 use App\Models\WorkOrder;
+use App\Services\PemesananStatusService;
 use Carbon\Carbon;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        protected PemesananStatusService $statusService
+    ) {}
+
     /**
      * Tampilkan dashboard ringkasan eksekutif admin.
      */
     public function index(): View
     {
+        // Jalankan auto-cancel real-time untuk pemesanan yang melewati batas konfirmasi
+        $this->statusService->autoCancelExpired();
+
         $now = Carbon::now();
 
         // 1. Rekap status pengerjaan

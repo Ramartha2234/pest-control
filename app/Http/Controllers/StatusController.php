@@ -3,17 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pemesanan;
+use App\Services\PemesananStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class StatusController extends Controller
 {
+    public function __construct(
+        protected PemesananStatusService $statusService
+    ) {}
+
     /**
      * Tampilkan halaman pelacakan status pesanan pelanggan.
      */
     public function index(Request $request): View|RedirectResponse
     {
+        $this->statusService->autoCancelExpired();
+
         $code = trim($request->query('code', ''));
         $pemesanan = null;
 
