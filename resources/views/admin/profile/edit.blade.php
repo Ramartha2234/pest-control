@@ -6,7 +6,7 @@
 @section('content')
 <div class="w-full">
     <div class="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm">
-        <form action="{{ route('admin.profile.update') }}" method="POST" class="space-y-8">
+        <form id="form-pengaturan" action="{{ route('admin.profile.update') }}" method="POST" class="space-y-8">
             @csrf
             @method('PUT')
 
@@ -159,11 +159,105 @@
 
             <!-- Action Button -->
             <div class="flex justify-end pt-2">
-                <button type="submit" class="rounded-xl bg-primary-500 hover:bg-primary-600 px-8 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.01]">
-                    Simpan Pengaturan
+                <button type="button"
+                        onclick="confirmSimpanPengaturan()"
+                        class="rounded-xl bg-primary-500 hover:bg-primary-600 px-8 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.01] flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Simpan Pengaturan</span>
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+{{-- MODAL DECISION KONFIRMASI: SIMPAN PERUBAHAN DATA? (YA / TIDAK) --}}
+<div id="modal-confirm-simpan" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-5 animate-in fade-in duration-200" onclick="event.stopPropagation()">
+        <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-base font-extrabold text-gray-900">Simpan Perubahan Data?</h3>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Apakah Anda yakin ingin menyimpan seluruh perubahan pada Pengaturan Sistem &amp; Akun ini?
+                </p>
+            </div>
+        </div>
+
+        <div class="rounded-xl bg-gray-50 border border-gray-100 p-3.5 text-xs text-gray-600 space-y-1.5">
+            <p class="font-bold text-gray-700">Perubahan data yang disimpan mencakup:</p>
+            <ul class="list-disc list-inside text-gray-500 text-[11px] space-y-1">
+                <li>Informasi rekening bank &amp; nomor WhatsApp resmi perusahaan</li>
+                <li>Pejabat penandatangan laporan PDF (Accounting &amp; Direktur)</li>
+                <li>Profil akun administrator (nama, email, dan password bila diisi)</li>
+            </ul>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+            <button type="button"
+                    onclick="closeConfirmModal()"
+                    class="rounded-xl border border-gray-300 px-5 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-100 transition">
+                Tidak
+            </button>
+            <button type="button"
+                    onclick="submitPengaturanForm()"
+                    class="rounded-xl bg-primary-600 hover:bg-primary-700 px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:scale-[1.01] flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Ya, Simpan</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmSimpanPengaturan() {
+        const form = document.getElementById('form-pengaturan');
+        if (!form) return;
+
+        // Validasi form HTML5 sebelum modal muncul
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const modal = document.getElementById('modal-confirm-simpan');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('modal-confirm-simpan');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    function submitPengaturanForm() {
+        const form = document.getElementById('form-pengaturan');
+        if (form) {
+            form.submit();
+        }
+    }
+
+    // Menutup modal dengan tombol Escape atau klik di luar modal (backdrop)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeConfirmModal();
+        }
+    });
+
+    document.getElementById('modal-confirm-simpan')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeConfirmModal();
+        }
+    });
+</script>
 @endsection
