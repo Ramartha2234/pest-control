@@ -29,6 +29,7 @@ Route::get('/pesan', [PemesananController::class, 'create'])->name('pemesanan.cr
 Route::get('/pesan/cek-slot', [PemesananController::class, 'cekSlot'])->name('pemesanan.cek-slot');
 Route::post('/pesan', [PemesananController::class, 'store'])->name('pemesanan.store');
 Route::get('/pesan/konfirmasi/{pemesanan}', [PemesananController::class, 'confirmation'])->name('pemesanan.confirmation');
+Route::post('/pesan/{pemesanan}/upload-dp', [PemesananController::class, 'uploadDp'])->name('pemesanan.upload-dp');
 
 // Halaman tracking (Throttle 10 percobaan/menit/IP)
 Route::get('/cek-status', [StatusController::class, 'index'])->name('status.index')->middleware('throttle:10,1');

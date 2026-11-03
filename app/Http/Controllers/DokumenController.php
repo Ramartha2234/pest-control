@@ -65,10 +65,6 @@ class DokumenController extends Controller
             if (! $kode || (strtoupper($kode) !== strtoupper($pemesanan->kode_pemesanan))) {
                 abort(403, 'Anda tidak memiliki hak akses untuk melihat bukti transfer DP ini.');
             }
-
-            if ($pemesanan->status_dp !== 'Lunas') {
-                abort(403, 'Bukti DP belum berstatus terverifikasi.');
-            }
         }
 
         $path = $this->resolveFilePath($pemesanan->bukti_dp);

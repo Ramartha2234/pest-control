@@ -126,103 +126,129 @@
             </div>
 
             {{-- ======================================================== --}}
-            {{-- FITUR DOWN PAYMENT (DP 10%) UNTUK NOMINAL >= 10 JUTA      --}}
+            {{-- DOWN PAYMENT (DP 10%) - VERIFIKASI BUKTI TRANSFER        --}}
             {{-- ======================================================== --}}
             @if ($pemesanan->wajib_dp)
-                <div class="rounded-2xl border-2 {{ $pemesanan->status_dp === 'Lunas' ? 'border-emerald-300 bg-emerald-50/40' : 'border-amber-400 bg-amber-50/70' }} p-6 shadow-sm space-y-4">
-                    <div class="flex items-center justify-between flex-wrap gap-2">
-                        <div class="flex items-center gap-2.5">
-                            <span class="flex h-8 w-8 items-center justify-center rounded-xl {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-600' : 'bg-amber-600' }} text-white font-black text-xs shadow-sm">
-                                DP
-                            </span>
-                            <div>
-                                <h4 class="text-base font-extrabold text-gray-900">Verifikasi Down Payment (DP 10%)</h4>
-                                <p class="text-xs text-gray-500">Pemesanan berskala besar (≥ Rp 10.000.000) wajib DP sebelum jadwal survei dibuka.</p>
-                            </div>
+                @php
+                    $isDpLunas = $pemesanan->status_dp === 'Lunas';
+                    $isDpMenunggu = $pemesanan->status_dp === 'Menunggu Verifikasi';
+                    $isDpDitolak = $pemesanan->status_dp === 'Ditolak';
+                @endphp
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
+                        <div>
+                            <h4 class="text-base font-bold text-gray-900">
+                                Verifikasi Down Payment (DP 10%)
+                            </h4>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                Pemesanan berskala besar (≥ Rp 10.000.000) wajib DP 10% sebelum jadwal survei dibuka.
+                            </p>
                         </div>
-                        <span class="rounded-full px-3 py-1 text-xs font-black {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300' }}">
-                            {{ $pemesanan->status_dp === 'Lunas' ? 'DP LUNAS & TERVERIFIKASI' : 'MENUNGGU VERIFIKASI DP' }}
+                        <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $isDpLunas ? 'bg-emerald-100 text-emerald-800' : ($isDpDitolak ? 'bg-rose-100 text-rose-800' : ($isDpMenunggu ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600')) }}">
+                            @if ($isDpLunas)
+                                DP Lunas
+                            @elseif ($isDpDitolak)
+                                Bukti Ditolak
+                            @elseif ($isDpMenunggu)
+                                Menunggu Verifikasi
+                            @else
+                                Belum Diunggah
+                            @endif
                         </span>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white p-4 rounded-xl border {{ $pemesanan->status_dp === 'Lunas' ? 'border-emerald-200' : 'border-amber-200' }} shadow-2xs">
-                        <div>
-                            <span class="text-gray-400 block font-medium">Total Estimasi Nilai Pesanan</span>
-                            <span class="text-sm font-bold text-gray-800">Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-400 block font-medium">Nominal DP 10% yang Wajib Masuk</span>
-                            <span class="text-sm font-black text-emerald-700">Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
-                        </div>
-                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        {{-- 1. Rincian Tagihan DP --}}
+                        <div class="rounded-xl border border-gray-200 bg-gray-50/70 p-4 space-y-3">
+                            <span class="font-bold text-gray-800 block">1. Rincian Down Payment</span>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">Total Estimasi Pesanan:</span>
+                                    <span class="font-bold text-gray-800">Rp {{ number_format($pemesanan->harga_estimasi, 0, ',', '.') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">Nominal DP 10% Wajib:</span>
+                                    <span class="text-sm font-black text-emerald-700">Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] pt-2 border-t border-gray-200 text-gray-500">
+                                    <span>Rekening Tujuan:</span>
+                                    <span class="font-bold text-gray-700">BCA 123-456-7890</span>
+                                </div>
+                            </div>
 
-                    @if ($pemesanan->status_dp === 'Lunas')
-                        <div class="space-y-3 pt-2">
-                            <div class="flex items-center justify-between flex-wrap gap-2 text-xs text-emerald-950 bg-emerald-100/70 p-3.5 rounded-xl border border-emerald-200">
-                                <span>Telah diverifikasi & dicocokkan mutasi bank pada: <b>{{ $pemesanan->tgl_bayar_dp?->translatedFormat('d F Y H:i') ?? '-' }} WITA</b></span>
+                            @if ($isDpLunas)
+                                <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-[11px] text-emerald-950 space-y-1">
+                                    <div class="font-bold text-emerald-800">✓ DP Telah Terverifikasi</div>
+                                    <div class="text-emerald-700">Disetujui pada: {{ $pemesanan->tgl_bayar_dp?->translatedFormat('d M Y H:i') ?? '-' }} WITA</div>
+                                    @if ($pemesanan->catatan_dp)
+                                        <div class="text-gray-600 pt-1 border-t border-emerald-200/60">Catatan: {{ $pemesanan->catatan_dp }}</div>
+                                    @endif
+                                </div>
+                            @elseif ($isDpDitolak)
+                                <div class="rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-[11px] text-rose-950 space-y-1">
+                                    <div class="font-bold text-rose-800">✕ Bukti DP Ditolak:</div>
+                                    <div class="text-rose-900 leading-relaxed">{{ $pemesanan->alasan_penolakan_dp ?? ($pemesanan->catatan_dp ?? 'Bukti transfer tidak valid atau belum masuk mutasi rekening.') }}</div>
+                                    <div class="text-rose-600 italic">Menunggu pelanggan mengunggah ulang bukti transfer baru.</div>
+                                </div>
+                            @elseif ($isDpMenunggu)
+                                <div class="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 leading-relaxed">
+                                    Pelanggan telah mengunggah bukti transfer DP. Silakan periksa struk di sebelah kanan dan cocokkan dengan mutasi rekening sebelum menyetujui.
+                                </div>
+                            @else
+                                <div class="rounded-lg bg-gray-100 border border-gray-200 p-2.5 text-[11px] text-gray-600 leading-relaxed">
+                                    Menunggu pelanggan mengunggah bukti transfer DP 10% melalui halaman pelacakan pesanan atau konfirmasi.
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- 2. Bukti Transfer DP & Aksi Verifikasi --}}
+                        <div class="rounded-xl border border-gray-200 bg-gray-50/70 p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-gray-800">2. Bukti Transfer DP</span>
                                 @if ($pemesanan->bukti_dp)
-                                    <a href="{{ route('dokumen.dp', $pemesanan->id_pemesanan) }}" target="_blank"
-                                       class="inline-flex items-center px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition">
-                                        Lihat Bukti Transfer DP
-                                    </a>
+                                    <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $isDpLunas ? 'bg-emerald-100 text-emerald-800' : ($isDpDitolak ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800') }}">
+                                        {{ $isDpLunas ? 'Disetujui' : ($isDpDitolak ? 'Ditolak' : 'Menunggu') }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400">Belum diunggah</span>
                                 @endif
                             </div>
 
-                            @if ($pemesanan->catatan_dp)
-                                <div class="text-xs text-gray-600 bg-white p-3 rounded-xl border border-gray-200">
-                                    <span class="font-bold text-gray-700">Catatan Mutasi:</span> {{ $pemesanan->catatan_dp }}
+                            @if ($pemesanan->bukti_dp)
+                                <div class="space-y-2">
+                                    <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100 group max-h-48 flex items-center justify-center">
+                                        <img src="{{ route('dokumen.dp', $pemesanan->id_pemesanan) }}" alt="Bukti Transfer DP" class="w-full h-40 object-cover object-center group-hover:scale-105 transition-transform" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'p-3 text-center text-gray-500 text-xs\'>Berkas bukti (klik untuk membuka): <a href=\'{{ route('dokumen.dp', $pemesanan->id_pemesanan) }}\' target=\'_blank\' class=\'font-bold text-primary-700 underline\'>Buka Dokumen</a></div>'">
+                                        <a href="{{ route('dokumen.dp', $pemesanan->id_pemesanan) }}" target="_blank" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1">
+                                            <span>🔍 Perbesar Bukti DP</span>
+                                        </a>
+                                    </div>
+                                    <div class="flex items-center justify-between text-gray-600 text-[11px]">
+                                        <span>File Bukti Transfer Pelanggan</span>
+                                        <a href="{{ route('dokumen.dp', $pemesanan->id_pemesanan) }}" target="_blank" class="font-bold text-primary-700 underline">Lihat / Unduh Dokumen</a>
+                                    </div>
+                                </div>
+
+                                @if ($isDpMenunggu || (!$isDpLunas && !$isDpDitolak))
+                                    <form action="{{ route('admin.pemesanan.verifikasi-dp', $pemesanan->id_pemesanan) }}" method="POST" class="pt-2 border-t border-gray-200 space-y-2">
+                                        @csrf
+                                        <input type="text" name="alasan_penolakan" placeholder="Alasan jika menolak bukti DP..." class="w-full rounded-xl border-gray-300 px-4 py-2.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition">
+                                        <div class="flex gap-2">
+                                            <button type="submit" name="aksi" value="setujui" class="flex-1 py-2 rounded-xl bg-emerald-600 font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 shadow-sm transition cursor-pointer">Setujui DP</button>
+                                            <button type="submit" name="aksi" value="tolak" class="flex-1 py-2 rounded-xl bg-rose-600 font-bold text-xs sm:text-sm text-white hover:bg-rose-700 shadow-sm transition cursor-pointer">Tolak DP</button>
+                                        </div>
+                                    </form>
+                                @endif
+                            @else
+                                <div class="flex flex-col items-center justify-center py-8 text-gray-400 text-center space-y-2">
+                                    <svg class="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                    <p class="text-xs text-gray-500">Belum ada bukti transfer yang diunggah oleh pelanggan.</p>
                                 </div>
                             @endif
-
-                            {{-- Opsi Upload Ulang / Perbarui Bukti DP --}}
-                            <details class="text-xs text-gray-600">
-                                <summary class="cursor-pointer font-bold text-primary-700 hover:underline">Unggah Ulang / Ganti File Bukti Transfer DP</summary>
-                                <form action="{{ route('admin.pemesanan.verifikasi-dp', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="mt-3 p-4 bg-white rounded-xl border border-gray-200 space-y-3">
-                                    @csrf
-                                    <div>
-                                        <label class="block font-semibold text-gray-700 mb-1">Pilih File Bukti Transfer Baru:</label>
-                                        <input type="file" name="bukti_dp" accept="image/*" required
-                                            class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
-                                            onchange="previewImage(this, 'preview-dp-reupload')">
-                                        <p class="text-[10px] text-slate-400 mt-1">Format: JPG/PNG, Maksimal 15 MB.</p>
-                                        <div id="preview-dp-reupload" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
-                                    </div>
-                                    <div>
-                                        <input type="text" name="catatan_dp" value="{{ $pemesanan->catatan_dp }}" placeholder="Catatan mutasi bank (opsional)..." class="w-full rounded-xl border-gray-300 px-3.5 py-2 text-xs">
-                                    </div>
-                                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition text-xs shadow-sm">
-                                        Perbarui Bukti DP
-                                    </button>
-                                </form>
-                            </details>
                         </div>
-                    @else
-                        {{-- Form Verifikasi & Upload Bukti DP dari WhatsApp Pelanggan --}}
-                        <form action="{{ route('admin.pemesanan.verifikasi-dp', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="bg-white p-4 sm:p-5 rounded-xl border border-amber-300 space-y-3 text-xs shadow-sm">
-                            @csrf
-                            <div>
-                                <label class="block font-bold text-gray-800 mb-1">
-                                    Upload Struk Bukti Transfer DP (Dari WhatsApp Pelanggan) <span class="text-rose-500">*</span>
-                                </label>
-                                <p class="text-[11px] text-gray-500 mb-2">
-                                    Pelanggan mengirimkan bukti transfer DP via WhatsApp. Setelah Anda mencocokkan mutasi bank, simpan foto struk lalu unggah di sini agar tersimpan ke sistem.
-                                </p>
-                                <input type="file" name="bukti_dp" accept="image/*" required
-                                    class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
-                                    onchange="previewImage(this, 'preview-dp')">
-                                <p class="text-[10px] text-slate-400 mt-1">Format: JPG/PNG, Maksimal 15 MB.</p>
-                                <div id="preview-dp" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-gray-700 mb-1">Catatan Mutasi / Bank (Opsional):</label>
-                                <input type="text" name="catatan_dp" placeholder="Contoh: Mutasi BCA a.n Budi Santoso Rp 1.500.000 sudah masuk."
-                                       class="w-full rounded-xl border-gray-300 px-3.5 py-2 text-xs focus:border-primary-500 focus:ring-primary-500">
-                            </div>
-                            <button type="submit" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-sm transition flex items-center justify-center cursor-pointer">
-                                Verifikasi & Simpan Bukti DP (Buka Jadwal Survei)
-                            </button>
-                        </form>
-                    @endif
+                    </div>
                 </div>
             @endif
 

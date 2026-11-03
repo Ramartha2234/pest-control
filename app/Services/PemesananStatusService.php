@@ -108,23 +108,78 @@ class PemesananStatusService
     }
 
     /**
-     * Verifikasi Down Payment (DP) oleh Admin setelah mencocokkan mutasi bank.
-     * Mengunggah bukti transfer DP dari WhatsApp dan membuka kunci jadwal survei.
+     * Pelanggan mengunggah bukti transfer DP 10%.
+     * Mengubah status_dp menjadi 'Menunggu Verifikasi' dan mereset alasan penolakan sebelumnya.
+     */
+    public function uploadBuktiDp(
+        Pemesanan $pemesanan,
+        string $buktiDpPath
+    ): Pemesanan {
+        return DB::transaction(function () use ($pemesanan, $buktiDpPath) {
+            $pemesanan->update([
+                'bukti_dp' => $buktiDpPath,
+                'status_dp' => 'Menunggu Verifikasi',
+                'alasan_penolakan_dp' => null,
+            ]);
+
+            return $pemesanan->fresh(['pelanggan', 'tarifLayanan']);
+        });
+    }
+
+    /**
+     * Verifikasi Down Payment (DP) oleh Admin.
+     * Admin memverifikasi bukti transfer DP yang diunggah pelanggan (Setujui atau Tolak dengan alasan).
      */
     public function verifikasiDp(
         Pemesanan $pemesanan,
         int $adminId,
-        string $buktiDpPath,
-        ?string $catatan = null
+        bool|string $disetujui = true,
+        ?string $alasanPenolakan = null,
+        ?string $catatan = null,
+        ?string $newBuktiPath = null
     ): Pemesanan {
-        return DB::transaction(function () use ($pemesanan, $adminId, $buktiDpPath, $catatan) {
-            $pemesanan->update([
+        // Mendukung kompatibilitas signature lama: verifikasiDp($pemesanan, $adminId, $filePath, $catatan)
+        if (is_string($disetujui)) {
+            $filePath = $disetujui;
+            $catatanText = $alasanPenolakan;
+
+            return DB::transaction(function () use ($pemesanan, $adminId, $filePath, $catatanText) {
+                $pemesanan->update([
+                    'id_admin' => $adminId,
+                    'status_dp' => 'Lunas',
+                    'bukti_dp' => $filePath,
+                    'tgl_bayar_dp' => now(),
+                    'alasan_penolakan_dp' => null,
+                    'catatan_dp' => $catatanText,
+                ]);
+
+                return $pemesanan->fresh(['pelanggan', 'tarifLayanan']);
+            });
+        }
+
+        return DB::transaction(function () use ($pemesanan, $adminId, $disetujui, $alasanPenolakan, $catatan, $newBuktiPath) {
+            $updateData = [
                 'id_admin' => $adminId,
-                'status_dp' => 'Lunas',
-                'bukti_dp' => $buktiDpPath,
-                'tgl_bayar_dp' => now(),
-                'catatan_dp' => $catatan,
-            ]);
+            ];
+
+            if ($newBuktiPath) {
+                $updateData['bukti_dp'] = $newBuktiPath;
+            }
+
+            if ($disetujui) {
+                $updateData['status_dp'] = 'Lunas';
+                $updateData['tgl_bayar_dp'] = now();
+                $updateData['alasan_penolakan_dp'] = null;
+                if ($catatan !== null) {
+                    $updateData['catatan_dp'] = $catatan;
+                }
+            } else {
+                $updateData['status_dp'] = 'Ditolak';
+                $updateData['alasan_penolakan_dp'] = $alasanPenolakan;
+                $updateData['catatan_dp'] = $alasanPenolakan;
+            }
+
+            $pemesanan->update($updateData);
 
             return $pemesanan->fresh(['pelanggan', 'tarifLayanan']);
         });

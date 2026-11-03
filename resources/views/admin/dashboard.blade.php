@@ -259,6 +259,14 @@
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                                         DP Lunas
                                     </span>
+                                @elseif ($booking->wajib_dp && $booking->status_dp === 'Menunggu Verifikasi')
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                                        Verifikasi DP
+                                    </span>
+                                @elseif ($booking->wajib_dp && $booking->status_dp === 'Ditolak')
+                                    <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
+                                        DP Ditolak
+                                    </span>
                                 @elseif ($booking->wajib_dp)
                                     <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
                                         Wajib DP
@@ -327,6 +335,14 @@
                                 @if ($booking->wajib_dp && $booking->status_dp === 'Lunas')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                                         DP Lunas
+                                    </span>
+                                @elseif ($booking->wajib_dp && $booking->status_dp === 'Menunggu Verifikasi')
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                                        Verifikasi DP
+                                    </span>
+                                @elseif ($booking->wajib_dp && $booking->status_dp === 'Ditolak')
+                                    <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
+                                        DP Ditolak
                                     </span>
                                 @else
                                     <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">

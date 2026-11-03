@@ -38,6 +38,7 @@ class Pemesanan extends Model
         'bukti_dp',
         'tgl_bayar_dp',
         'catatan_dp',
+        'alasan_penolakan_dp',
         'status_pengerjaan',
         'status_pembayaran',
         'alasan_pembatalan',

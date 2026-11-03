@@ -520,29 +520,54 @@ class PemesananController extends Controller
     }
 
     /**
-     * Verifikasi Down Payment (DP) dan upload bukti transfer DP oleh Admin.
+     * Verifikasi Down Payment (DP 10%) oleh Admin (Setuju atau Tolak dengan alasan).
      */
     public function verifikasiDp(Request $request, Pemesanan $pemesanan): RedirectResponse
     {
+        // Mendukung request kompatibilitas jika hanya mengirim file bukti_dp tanpa aksi
+        if (! $request->has('aksi') && $request->hasFile('bukti_dp')) {
+            $request->validate([
+                'bukti_dp' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+                'catatan_dp' => ['nullable', 'string', 'max:500'],
+            ]);
+            $path = $request->file('bukti_dp')->store('bukti_dp', 'public');
+            $this->statusService->verifikasiDp($pemesanan, Auth::id(), true, null, $request->input('catatan_dp'), $path);
+
+            return redirect()->route('admin.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('success', 'Pembayaran Down Payment (DP 10%) berhasil diverifikasi dan bukti transfer telah tersimpan.');
+        }
+
         $request->validate([
-            'bukti_dp' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'aksi' => ['required', 'in:setujui,tolak'],
+            'alasan_penolakan' => ['required_if:aksi,tolak', 'nullable', 'string', 'max:1000'],
             'catatan_dp' => ['nullable', 'string', 'max:500'],
+            'bukti_dp' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ], [
-            'bukti_dp.required' => 'File bukti transfer DP wajib diunggah.',
+            'aksi.required' => 'Pilih tindakan verifikasi (Setujui atau Tolak).',
+            'alasan_penolakan.required_if' => 'Alasan penolakan bukti DP wajib diisi jika bukti ditolak.',
             'bukti_dp.image' => 'File bukti transfer harus berupa gambar (JPG, JPEG, PNG, WEBP).',
             'bukti_dp.max' => 'Ukuran file bukti transfer maksimal 5 MB.',
         ]);
 
-        $path = $request->file('bukti_dp')->store('bukti_dp', 'public');
+        $disetujui = $request->input('aksi') === 'setujui';
+        $newBuktiPath = $request->hasFile('bukti_dp')
+            ? $request->file('bukti_dp')->store('bukti_dp', 'public')
+            : null;
 
         $this->statusService->verifikasiDp(
             $pemesanan,
             Auth::id(),
-            $path,
-            $request->input('catatan_dp')
+            $disetujui,
+            $request->input('alasan_penolakan'),
+            $request->input('catatan_dp'),
+            $newBuktiPath
         );
 
+        $msg = $disetujui
+            ? 'Pembayaran Down Payment (DP 10%) berhasil disetujui. Penugasan teknisi dan survei kini dapat diproses.'
+            : 'Bukti pembayaran Down Payment (DP 10%) telah ditolak. Pelanggan dapat mengunggah bukti baru.';
+
         return redirect()->route('admin.pemesanan.show', $pemesanan->id_pemesanan)
-            ->with('success', 'Pembayaran Down Payment (DP 10%) berhasil diverifikasi dan bukti transfer telah tersimpan.');
+            ->with('success', $msg);
     }
 }

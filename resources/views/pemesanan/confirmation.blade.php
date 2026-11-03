@@ -20,6 +20,32 @@
                 Terima kasih atas kepercayaan Anda kepada CV. Ambius Indonesia. Data survei Anda telah masuk antrean verifikasi teknisi.
             </p>
 
+            {{-- Flash Messages --}}
+            @if (session('success'))
+                <div class="mt-4 rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-xs font-bold text-emerald-900 text-left">
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if (session('error'))
+                <div class="mt-4 rounded-2xl bg-rose-50 border border-rose-300 p-4 text-xs font-bold text-rose-900 text-left">
+                    {{ session('error') }}
+                </div>
+            @endif
+            @if (session('warning'))
+                <div class="mt-4 rounded-2xl bg-amber-50 border border-amber-300 p-4 text-xs font-bold text-amber-900 text-left">
+                    {{ session('warning') }}
+                </div>
+            @endif
+            @if ($errors->any())
+                <div class="mt-4 rounded-2xl bg-rose-50 border border-rose-300 p-4 text-xs font-bold text-rose-900 text-left">
+                    <ul class="list-disc pl-4 space-y-1">
+                        @foreach ($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             {{-- Unique Code Highlight --}}
             @php
                 $kode = $pemesanan->kode_pemesanan ?? $pemesanan->kode_unik;
@@ -128,10 +154,114 @@
                         <ol class="list-decimal pl-4 space-y-1.5 text-[11px] text-amber-900/90 leading-relaxed">
                             <li>Transfer DP sebesar <strong class="text-amber-950 whitespace-nowrap">Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</strong> ke rekening di atas.</li>
                             <li>Sertakan kode pesanan <strong class="text-amber-950">{{ $kode }}</strong> pada berita/catatan transfer.</li>
-                            <li>Kirimkan bukti struk transfer ke WhatsApp admin melalui tombol hijau di bawah.</li>
-                            <li>Setelah admin mencocokkan mutasi dan mengunggah bukti, survei lokasi akan langsung dijadwalkan.</li>
+                            <li>Unggah foto/tangkapan layar bukti transfer pada formulir di bawah ini.</li>
+                            <li>Admin akan memverifikasi mutasi bank dan menyetujui pembayaran DP agar jadwal survei langsung dibuka.</li>
                         </ol>
                     </div>
+
+                    {{-- Status & Formulir Upload Bukti Transfer DP oleh Pelanggan --}}
+                    @if ($pemesanan->status_dp === 'Lunas')
+                        <div class="rounded-xl bg-emerald-50 p-4 border border-emerald-300 text-xs text-emerald-950 space-y-2">
+                            <div class="flex items-center gap-2 text-emerald-800 font-extrabold text-sm">
+                                <svg class="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Pembayaran DP 10% Berhasil Diverifikasi!</span>
+                            </div>
+                            <p class="text-[11px] text-emerald-800">
+                                Pembayaran DP sebesar <strong>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</strong> telah disetujui admin. Jadwal survei lokasi sedang diproses.
+                            </p>
+                            @if ($pemesanan->bukti_dp)
+                                <div class="pt-1">
+                                    <a href="{{ route('dokumen.dp', ['pemesanan' => $pemesanan->id_pemesanan, 'kode' => $kode]) }}" target="_blank"
+                                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition">
+                                        Lihat Bukti Transfer DP Resmi
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+                    @elseif ($pemesanan->status_dp === 'Menunggu Verifikasi')
+                        <div class="rounded-xl bg-blue-50 p-4 border border-blue-200 text-xs text-blue-950 space-y-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2 text-blue-900 font-extrabold text-sm">
+                                    <svg class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span>Bukti Transfer DP Berhasil Diunggah</span>
+                                </div>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300">
+                                    Menunggu Verifikasi Admin
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-blue-800 leading-relaxed">
+                                Bukti transfer DP Anda telah kami terima dan sedang dalam antrean verifikasi admin. Jadwal survei akan dibuka segera setelah pembayaran disetujui.
+                            </p>
+                            @if ($pemesanan->bukti_dp)
+                                <div class="pt-1">
+                                    <a href="{{ route('dokumen.dp', ['pemesanan' => $pemesanan->id_pemesanan, 'kode' => $kode]) }}" target="_blank"
+                                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-sm transition">
+                                        Lihat Bukti yang Anda Unggah
+                                    </a>
+                                </div>
+                            @endif
+
+                            <details class="text-[11px] text-slate-600 pt-2 border-t border-blue-100">
+                                <summary class="cursor-pointer font-bold text-blue-700 hover:underline">Unggah Ulang Bukti Transfer (Jika salah file)</summary>
+                                <form action="{{ route('pemesanan.upload-dp', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="mt-3 space-y-2.5">
+                                    @csrf
+                                    <input type="hidden" name="kode_pemesanan" value="{{ $kode }}">
+                                    <input type="file" name="bukti_dp" accept="image/*" required
+                                           class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-800 hover:file:bg-blue-200 cursor-pointer">
+                                    <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition cursor-pointer">
+                                        Kirim Ulang Bukti Transfer
+                                    </button>
+                                </form>
+                            </details>
+                        </div>
+                    @else
+                        {{-- Belum Dibayar atau Ditolak --}}
+                        @if ($pemesanan->status_dp === 'Ditolak')
+                            <div class="rounded-xl bg-rose-50 p-4 border border-rose-300 text-xs text-rose-950 space-y-2">
+                                <div class="flex items-center gap-2 text-rose-800 font-extrabold text-sm">
+                                    <svg class="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span>Bukti Transfer DP Ditolak Admin</span>
+                                </div>
+                                <p class="text-[11px] text-rose-800">
+                                    <strong>Alasan Penolakan:</strong> {{ $pemesanan->alasan_penolakan_dp ?? ($pemesanan->catatan_dp ?? 'Bukti transfer tidak sesuai atau mutasi bank belum masuk.') }}
+                                </p>
+                                <p class="text-[11px] text-rose-700">
+                                    Silakan lakukan transfer ulang atau unggah kembali bukti transfer yang valid di bawah ini.
+                                </p>
+                            </div>
+                        @endif
+
+                        <div class="rounded-xl bg-white p-4 border border-amber-300 shadow-sm space-y-3">
+                            <div class="flex items-center gap-2">
+                                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-xs">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                </span>
+                                <h5 class="font-extrabold text-slate-900 text-xs sm:text-sm">
+                                    {{ $pemesanan->status_dp === 'Ditolak' ? 'Unggah Ulang Bukti Transfer DP 10%' : 'Unggah Bukti Transfer DP 10%' }}
+                                </h5>
+                            </div>
+                            <p class="text-[11px] text-slate-500">
+                                Setelah mentransfer DP sebesar <b>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</b>, silakan unggah foto/screenshot struk bukti transfer Anda:
+                            </p>
+
+                            <form action="{{ route('pemesanan.upload-dp', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+                                @csrf
+                                <input type="hidden" name="kode_pemesanan" value="{{ $kode }}">
+                                <div>
+                                    <input type="file" name="bukti_dp" accept="image/*" required
+                                           class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                                           onchange="previewImageConfirmation(this, 'preview-dp-confirm')">
+                                    <p class="text-[10px] text-slate-400 mt-1">Format gambar: JPG, JPEG, PNG, WEBP (Maksimal 5 MB).</p>
+                                    <div id="preview-dp-confirm" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
+                                </div>
+                                <button type="submit"
+                                        class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white shadow-md transition active:scale-[0.99] cursor-pointer">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                    <span>Kirim Bukti Transfer DP</span>
+                                </button>
+                            </form>
+                        </div>
+                    @endif
                 </div>
 
                 {{-- WhatsApp Confirmation Button (Khusus DP) --}}
@@ -204,6 +334,22 @@
                 }, 2500);
             }
         });
+    }
+
+    function previewImageConfirmation(input, previewId) {
+        const preview = document.getElementById(previewId);
+        if (!preview) return;
+        preview.innerHTML = '';
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" class="w-full h-auto max-h-48 object-cover rounded-xl shadow-xs" alt="Preview Bukti Transfer">`;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.classList.add('hidden');
+        }
     }
 </script>
 @endsection

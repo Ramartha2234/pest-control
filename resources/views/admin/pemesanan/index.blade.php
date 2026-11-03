@@ -132,8 +132,22 @@
                                 <div>Rp {{ number_format($booking->harga_final ?? ($booking->harga_estimasi ?? $booking->nominal), 0, ',', '.') }}</div>
                                 @if ($booking->wajib_dp)
                                     <div class="mt-0.5 space-y-0.5">
-                                        <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded {{ $booking->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
-                                            DP 10%: {{ $booking->status_dp === 'Lunas' ? 'Lunas' : 'Belum' }}
+                                        @php
+                                            $dpBadgeClass = match($booking->status_dp) {
+                                                'Lunas' => 'bg-emerald-100 text-emerald-800',
+                                                'Menunggu Verifikasi' => 'bg-blue-100 text-blue-800',
+                                                'Ditolak' => 'bg-rose-100 text-rose-800',
+                                                default => 'bg-amber-100 text-amber-800',
+                                            };
+                                            $dpBadgeLabel = match($booking->status_dp) {
+                                                'Lunas' => 'Lunas',
+                                                'Menunggu Verifikasi' => 'Menunggu Verif',
+                                                'Ditolak' => 'Ditolak',
+                                                default => 'Belum',
+                                            };
+                                        @endphp
+                                        <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded {{ $dpBadgeClass }}">
+                                            DP 10%: {{ $dpBadgeLabel }}
                                         </span>
                                         @if ($booking->status_dp === 'Lunas')
                                             <div class="text-[10px] text-gray-500 font-semibold">

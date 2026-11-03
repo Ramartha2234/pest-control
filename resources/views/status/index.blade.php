@@ -81,6 +81,27 @@
             @endphp
 
             <div class="space-y-6">
+                {{-- Flash Messages --}}
+                @if (session('success'))
+                    <div class="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-xs font-bold text-emerald-900">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                @if (session('warning'))
+                    <div class="rounded-2xl bg-amber-50 border border-amber-300 p-4 text-xs font-bold text-amber-900">
+                        {{ session('warning') }}
+                    </div>
+                @endif
+                @if ($errors->any())
+                    <div class="rounded-2xl bg-rose-50 border border-rose-300 p-4 text-xs font-bold text-rose-900">
+                        <ul class="list-disc pl-4 space-y-1">
+                            @foreach ($errors->all() as $err)
+                                <li>{{ $err }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 {{-- Live Auto-Refresh Indicator Bar --}}
                 <div class="flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm text-xs">
                     <div class="flex items-center gap-2 text-slate-600">
@@ -156,32 +177,152 @@
                                 </div>
                             @endif
                         </div>
-                    @else
-                        <div class="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100/70 p-5 sm:p-6 text-xs text-amber-950 shadow-sm space-y-3">
-                            <div class="flex flex-col items-center justify-center text-center gap-2 pb-2.5 border-b border-amber-200/80">
-                                <h4 class="font-extrabold text-sm sm:text-base text-amber-950">
-                                    Menunggu Pembayaran Down Payment (DP 10%)
+                    @elseif ($pemesanan->status_dp === 'Menunggu Verifikasi')
+                        <div class="rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-sky-50 to-blue-100/70 p-5 sm:p-6 text-xs text-blue-950 shadow-sm space-y-4">
+                            <div class="flex flex-col items-center justify-center text-center gap-2 pb-2.5 border-b border-blue-200/80">
+                                <h4 class="font-extrabold text-sm sm:text-base text-blue-950">
+                                    Bukti Transfer DP Sedang Diverifikasi Admin
                                 </h4>
-                                <span class="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-white text-amber-800 text-xs font-bold border border-amber-200 shadow-2xs tracking-wide">Wajib DP</span>
+                                <span class="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-white text-blue-800 text-xs font-bold border border-blue-200 shadow-2xs tracking-wide">
+                                    Menunggu Verifikasi
+                                </span>
                             </div>
-                            <p class="text-amber-800 leading-relaxed text-center max-w-xl mx-auto">
-                                Pesanan ini bernilai skala besar (≥ Rp 10.000.000). Sesuai ketentuan, <b>survei lokasi teknisi baru dapat dijadwalkan setelah DP 10% sebesar Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }} diterima & diverifikasi admin</b>.
+                            <p class="text-blue-800 leading-relaxed text-center max-w-xl mx-auto">
+                                Bukti transfer DP sebesar <b>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</b> yang Anda unggah sedang dalam proses pemeriksaan dan pencocokan mutasi bank oleh admin kami. Jadwal survei lokasi akan langsung dibuka setelah verifikasi disetujui.
                             </p>
-                            <div class="rounded-xl bg-white p-3.5 border border-amber-200 text-slate-800 space-y-1 max-w-md mx-auto text-left">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rekening Resmi Transfer DP:</span>
-                                <div class="text-xs font-bold text-slate-900">
-                                    {{ \App\Models\Pengaturan::get('bank_name', config('pestcontrol.bank_name', 'Bank Central Asia (BCA)')) }}: 
-                                    <span class="font-mono text-emerald-800 text-sm font-black">{{ \App\Models\Pengaturan::get('bank_account_number', config('pestcontrol.bank_account_number', '123-456-7890')) }}</span>
+                            @if ($pemesanan->bukti_dp)
+                                <div class="pt-1 flex justify-center">
+                                    <a href="{{ route('dokumen.dp', ['pemesanan' => $pemesanan->id_pemesanan, 'kode' => $kodePemesanan]) }}" target="_blank"
+                                       class="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-95">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Lihat Bukti Transfer yang Anda Unggah
+                                    </a>
                                 </div>
-                                <div class="text-[11px] text-slate-500">Atas Nama: <strong class="text-slate-800">{{ \App\Models\Pengaturan::get('bank_account_holder', config('pestcontrol.bank_account_holder', 'CV. Ambius Indonesia')) }}</strong></div>
-                                <div class="text-[11px] text-slate-500">Berita Transfer: <strong class="text-emerald-800 font-mono">{{ $kodePemesanan }}</strong></div>
+                            @endif
+
+                            <div class="max-w-md mx-auto pt-2">
+                                <details class="text-[11px] text-slate-600 bg-white/80 p-3 rounded-xl border border-blue-200">
+                                    <summary class="cursor-pointer font-bold text-blue-700 hover:underline">Unggah Ulang Bukti Transfer (Jika salah file)</summary>
+                                    <form action="{{ route('pemesanan.upload-dp', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="mt-3 space-y-2.5">
+                                        @csrf
+                                        <input type="hidden" name="kode_pemesanan" value="{{ $kodePemesanan }}">
+                                        <input type="file" name="bukti_dp" accept="image/*" required
+                                               class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-800 hover:file:bg-blue-200 cursor-pointer">
+                                        <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition cursor-pointer">
+                                            Kirim Ulang Bukti Transfer
+                                        </button>
+                                    </form>
+                                </details>
                             </div>
-                            <div class="pt-1 flex justify-center">
-                                <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', \App\Models\Pengaturan::get('whatsapp_number', config('pestcontrol.whatsapp_number'))) }}?text=Halo%20Admin%20CV.%20Ambius,%20saya%20sudah%20transfer%20DP%2010%25%20sebesar%20Rp%20{{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}%20untuk%20Kode%20Pemesanan:%20{{ $kodePemesanan }}.%20Berikut%20bukti%20transfernya."
-                                   target="_blank" rel="noopener"
-                                   class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 font-bold text-white shadow-sm transition active:scale-95">
-                                    Konfirmasi Transfer DP via WhatsApp
-                                </a>
+                        </div>
+                    @else
+                        {{-- Ditolak atau Belum Dibayar --}}
+                        <div class="rounded-2xl border-2 {{ $pemesanan->status_dp === 'Ditolak' ? 'border-rose-300 bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100/70' : 'border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100/70' }} p-5 sm:p-6 text-xs text-slate-900 shadow-sm space-y-4">
+                            <div class="flex flex-col items-center justify-center text-center gap-2 pb-2.5 border-b {{ $pemesanan->status_dp === 'Ditolak' ? 'border-rose-200/80' : 'border-amber-200/80' }}">
+                                <h4 class="font-extrabold text-sm sm:text-base {{ $pemesanan->status_dp === 'Ditolak' ? 'text-rose-950' : 'text-amber-950' }}">
+                                    {{ $pemesanan->status_dp === 'Ditolak' ? 'Bukti Transfer DP Ditolak Admin' : 'Menunggu Pembayaran Down Payment (DP 10%)' }}
+                                </h4>
+                                <span class="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-white {{ $pemesanan->status_dp === 'Ditolak' ? 'text-rose-800 border-rose-200' : 'text-amber-800 border-amber-200' }} text-xs font-bold border shadow-2xs tracking-wide">
+                                    {{ $pemesanan->status_dp === 'Ditolak' ? 'Bukti Ditolak' : 'Wajib DP' }}
+                                </span>
+                            </div>
+
+                            @if ($pemesanan->status_dp === 'Ditolak')
+                                <div class="rounded-xl bg-white p-3.5 border border-rose-200 text-rose-900 space-y-1.5 max-w-md mx-auto text-left shadow-2xs">
+                                    <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Alasan Penolakan dari Admin:</span>
+                                    <p class="text-xs font-semibold text-rose-950 leading-relaxed">
+                                        {{ $pemesanan->alasan_penolakan_dp ?? ($pemesanan->catatan_dp ?? 'Bukti transfer tidak valid atau belum masuk mutasi rekening.') }}
+                                    </p>
+                                    <p class="text-[11px] text-rose-700 pt-1 border-t border-rose-100">
+                                        Silakan pastikan dana telah berhasil ditransfer dan unggah kembali bukti transfer yang jelas di bawah.
+                                    </p>
+                                </div>
+                            @else
+                                <p class="text-amber-800 leading-relaxed text-center max-w-xl mx-auto">
+                                    Pesanan ini bernilai skala besar (≥ Rp 10.000.000). Sesuai ketentuan, <b>survei lokasi teknisi baru dapat dijadwalkan setelah pembayaran DP 10% sebesar <span class="inline-flex items-center px-2 py-0.5 rounded-md font-black text-amber-950 bg-amber-200/90 border border-amber-300 font-mono text-xs">Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span> diterima & diverifikasi admin</b>.
+                                </p>
+                            @endif
+
+                            {{-- Kotak Rincian Nominal DP & Rekening Pembayaran Resmi --}}
+                            <div class="rounded-2xl bg-white p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3.5 max-w-md mx-auto text-left">
+                                {{-- Highlight Nominal DP --}}
+                                <div class="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 p-3.5 border border-emerald-200 flex items-center justify-between gap-3">
+                                    <div>
+                                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 block">Nominal DP 10% yang Harus Ditransfer</span>
+                                        <span class="text-[11px] text-emerald-700">Harap transfer tepat sesuai nominal</span>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-base sm:text-lg font-black text-emerald-700 font-mono tracking-tight block">
+                                            Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {{-- Detail Rekening Bank --}}
+                                <div class="space-y-2.5 pt-1">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tujuan Transfer Bank:</span>
+                                    <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 gap-2">
+                                        <div class="min-w-0">
+                                            <span class="text-[11px] font-bold text-slate-600 block">
+                                                {{ \App\Models\Pengaturan::get('bank_name', config('pestcontrol.bank_name', 'Bank Central Asia (BCA)')) }}
+                                            </span>
+                                            <span id="noRekStatus" class="text-sm sm:text-base font-mono font-black text-slate-900 select-all tracking-wider block">
+                                                {{ \App\Models\Pengaturan::get('bank_account_number', config('pestcontrol.bank_account_number', '123-456-7890')) }}
+                                            </span>
+                                        </div>
+                                        <button type="button" onclick="copyRekeningStatus()"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-300 shadow-2xs transition active:scale-95 shrink-0 cursor-pointer"
+                                                title="Salin No. Rekening">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                            </svg>
+                                            <span>Salin</span>
+                                        </button>
+                                    </div>
+                                    <div id="copyRekStatusFeedback" class="hidden text-[11px] text-center text-emerald-700 font-bold bg-emerald-50 py-1 rounded-lg border border-emerald-200">
+                                        Nomor rekening berhasil disalin!
+                                    </div>
+
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                                        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                                            <span class="text-slate-400 block text-[10px]">Atas Nama Rekening:</span>
+                                            <span class="font-bold text-slate-800">{{ \App\Models\Pengaturan::get('bank_account_holder', config('pestcontrol.bank_account_holder', 'CV. Ambius Indonesia')) }}</span>
+                                        </div>
+                                        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                                            <span class="text-slate-400 block text-[10px]">Berita / Keterangan Transfer:</span>
+                                            <span class="font-mono font-black text-emerald-700">{{ $kodePemesanan }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Formulir Upload Bukti Transfer DP --}}
+                            <div class="rounded-xl bg-white p-4 border {{ $pemesanan->status_dp === 'Ditolak' ? 'border-rose-300' : 'border-amber-300' }} space-y-3 max-w-md mx-auto text-left shadow-2xs">
+                                <span class="block font-bold text-slate-900 text-xs">
+                                    {{ $pemesanan->status_dp === 'Ditolak' ? 'Unggah Ulang Bukti Transfer DP 10%' : 'Unggah Bukti Transfer DP 10%' }}
+                                </span>
+                                <p class="text-[11px] text-slate-500">
+                                    Setelah mentransfer DP sebesar <b>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</b>, silakan unggah foto/screenshot struk bukti transfer Anda:
+                                </p>
+                                <form action="{{ route('pemesanan.upload-dp', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+                                    @csrf
+                                    <input type="hidden" name="kode_pemesanan" value="{{ $kodePemesanan }}">
+                                    <div>
+                                        <input type="file" name="bukti_dp" accept="image/*" required
+                                               class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                                               onchange="previewImageStatus(this, 'preview-dp-status')">
+                                        <p class="text-[10px] text-slate-400 mt-1">Format gambar: JPG, JPEG, PNG, WEBP (Maksimal 5 MB).</p>
+                                        <div id="preview-dp-status" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
+                                    </div>
+                                    <button type="submit"
+                                            class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow transition cursor-pointer">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                        <span>Kirim Bukti Transfer DP</span>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     @endif
@@ -542,6 +683,36 @@
 @push('scripts')
 @if ($pemesanan)
 <script>
+    function copyRekeningStatus() {
+        const text = document.getElementById('noRekStatus')?.innerText.trim();
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            const feedback = document.getElementById('copyRekStatusFeedback');
+            if (feedback) {
+                feedback.classList.remove('hidden');
+                setTimeout(() => {
+                    feedback.classList.add('hidden');
+                }, 2500);
+            }
+        });
+    }
+
+    function previewImageStatus(input, previewId) {
+        const preview = document.getElementById(previewId);
+        if (!preview) return;
+        preview.innerHTML = '';
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" class="w-full h-auto max-h-48 object-cover rounded-xl shadow-xs" alt="Preview Bukti Transfer">`;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.classList.add('hidden');
+        }
+    }
+
     // Auto-refresh data tiap 30 detik (polling ringan)
     document.addEventListener('DOMContentLoaded', function () {
         let timeLeft = 30;

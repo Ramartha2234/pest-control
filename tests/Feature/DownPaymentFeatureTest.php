@@ -191,6 +191,137 @@ test('admin dapat mengunggah bukti transfer DP dan memverifikasi DP', function (
     Storage::disk('public')->assertExists($pemesanan->bukti_dp);
 });
 
+test('pelanggan dapat mengunggah bukti transfer DP 10% dan status berubah menjadi Menunggu Verifikasi', function () {
+    Storage::fake('public');
+
+    $pemesanan = Pemesanan::factory()->create([
+        'kode_pemesanan' => 'AMB-CUSTDP',
+        'harga_estimasi' => 15000000,
+        'wajib_dp' => true,
+        'nominal_dp' => 1500000,
+        'status_dp' => 'Belum Dibayar',
+        'status_pengerjaan' => 'Pending',
+    ]);
+
+    $file = UploadedFile::fake()->image('bukti_tf_pelanggan.png');
+
+    $response = $this->post(route('pemesanan.upload-dp', $pemesanan->id_pemesanan), [
+        'bukti_dp' => $file,
+        'kode_pemesanan' => 'AMB-CUSTDP',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+
+    $pemesanan->refresh();
+    expect($pemesanan->status_dp)->toBe('Menunggu Verifikasi');
+    expect($pemesanan->bukti_dp)->not->toBeNull();
+    expect($pemesanan->canScheduleSurvei())->toBeFalse(); // Masih harus diverifikasi admin
+
+    Storage::disk('public')->assertExists($pemesanan->bukti_dp);
+});
+
+test('admin dapat memverifikasi dan menyetujui bukti transfer DP yang diunggah pelanggan', function () {
+    Storage::fake('public');
+
+    $admin = Pengguna::create([
+        'nama' => 'Admin Keuangan',
+        'email' => 'admin_keuangan_dp@ambius.com',
+        'password' => bcrypt('password'),
+        'role' => 'admin',
+        'status_aktif' => true,
+    ]);
+
+    $pemesanan = Pemesanan::factory()->create([
+        'kode_pemesanan' => 'AMB-APPROVEDP',
+        'harga_estimasi' => 15000000,
+        'wajib_dp' => true,
+        'nominal_dp' => 1500000,
+        'status_dp' => 'Menunggu Verifikasi',
+        'bukti_dp' => 'bukti_dp/struk_pelanggan.jpg',
+        'status_pengerjaan' => 'Pending',
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->post(route('admin.pemesanan.verifikasi-dp', $pemesanan->id_pemesanan), [
+            'aksi' => 'setujui',
+            'catatan_dp' => 'Mutasi BCA 1.500.000 terverifikasi.',
+        ]);
+
+    $response->assertRedirect(route('admin.pemesanan.show', $pemesanan->id_pemesanan));
+    $response->assertSessionHas('success');
+
+    $pemesanan->refresh();
+    expect($pemesanan->status_dp)->toBe('Lunas');
+    expect($pemesanan->tgl_bayar_dp)->not->toBeNull();
+    expect($pemesanan->alasan_penolakan_dp)->toBeNull();
+    expect($pemesanan->catatan_dp)->toBe('Mutasi BCA 1.500.000 terverifikasi.');
+    expect($pemesanan->canScheduleSurvei())->toBeTrue();
+});
+
+test('admin dapat menolak bukti transfer DP dengan mencantumkan alasan penolakan', function () {
+    Storage::fake('public');
+
+    $admin = Pengguna::create([
+        'nama' => 'Admin Verifikator',
+        'email' => 'admin_tolak_dp@ambius.com',
+        'password' => bcrypt('password'),
+        'role' => 'admin',
+        'status_aktif' => true,
+    ]);
+
+    $pemesanan = Pemesanan::factory()->create([
+        'kode_pemesanan' => 'AMB-REJECTDP',
+        'harga_estimasi' => 16000000,
+        'wajib_dp' => true,
+        'nominal_dp' => 1600000,
+        'status_dp' => 'Menunggu Verifikasi',
+        'bukti_dp' => 'bukti_dp/struk_salah.jpg',
+        'status_pengerjaan' => 'Pending',
+    ]);
+
+    // 1. Menolak tanpa alasan harus gagal validasi
+    $failedResponse = $this->actingAs($admin)
+        ->post(route('admin.pemesanan.verifikasi-dp', $pemesanan->id_pemesanan), [
+            'aksi' => 'tolak',
+            'alasan_penolakan' => '',
+        ]);
+    $failedResponse->assertSessionHasErrors(['alasan_penolakan']);
+
+    // 2. Menolak dengan alasan yang valid
+    $successResponse = $this->actingAs($admin)
+        ->post(route('admin.pemesanan.verifikasi-dp', $pemesanan->id_pemesanan), [
+            'aksi' => 'tolak',
+            'alasan_penolakan' => 'Nominal transfer tidak sesuai (hanya Rp 500.000) dan mutasi rekening belum valid.',
+        ]);
+
+    $successResponse->assertRedirect(route('admin.pemesanan.show', $pemesanan->id_pemesanan));
+    $successResponse->assertSessionHas('success');
+
+    $pemesanan->refresh();
+    expect($pemesanan->status_dp)->toBe('Ditolak');
+    expect($pemesanan->alasan_penolakan_dp)->toBe('Nominal transfer tidak sesuai (hanya Rp 500.000) dan mutasi rekening belum valid.');
+    expect($pemesanan->canScheduleSurvei())->toBeFalse();
+
+    // 3. Pelanggan melihat alasan penolakan pada halaman tracking
+    $trackingResponse = $this->get(route('status.index', ['code' => 'AMB-REJECTDP']));
+    $trackingResponse->assertSuccessful();
+    $trackingResponse->assertSee('Bukti Transfer DP Ditolak Admin');
+    $trackingResponse->assertSee('Nominal transfer tidak sesuai (hanya Rp 500.000)');
+    $trackingResponse->assertSee('Unggah Ulang Bukti Transfer DP 10%');
+
+    // 4. Pelanggan dapat mengunggah ulang bukti transfer baru
+    $newFile = UploadedFile::fake()->image('bukti_baru_valid.jpg');
+    $reuploadResponse = $this->post(route('pemesanan.upload-dp', $pemesanan->id_pemesanan), [
+        'bukti_dp' => $newFile,
+        'kode_pemesanan' => 'AMB-REJECTDP',
+    ]);
+    $reuploadResponse->assertRedirect();
+    $pemesanan->refresh();
+    expect($pemesanan->status_dp)->toBe('Menunggu Verifikasi');
+    expect($pemesanan->alasan_penolakan_dp)->toBeNull();
+});
+
 test('pelanggan dapat melihat bukti DP pada halaman cek status via kode unik', function () {
     Storage::fake('public');
 
