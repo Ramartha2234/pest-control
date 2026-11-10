@@ -11,10 +11,8 @@
 
             {{-- Header --}}
             <div class="text-center mb-8">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-700 mb-4 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
+                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white p-2 mb-4 shadow-sm border border-slate-100">
+                    <img src="{{ asset('images/logo.png') }}" alt="CV. Ambius Indonesia" class="h-full w-auto object-contain">
                 </div>
                 <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Login Portal Admin & Teknisi</h1>
                 <p class="text-xs text-gray-500 mt-1">Khusus bagi Admin & Teknisi CV. Ambius</p>

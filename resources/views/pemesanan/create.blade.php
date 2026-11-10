@@ -36,7 +36,7 @@
                             Nama Lengkap <span class="text-rose-500">*</span>
                         </label>
                         <input type="text" name="nama" id="nama" value="{{ old('nama', old('nama_client')) }}" required
-                               class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('nama') border-rose-400 ring-1 ring-rose-400 @enderror"
+                               class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('nama') border-rose-400 ring-1 ring-rose-400 @enderror"
                                placeholder="Contoh: Budi Santoso">
                         @error('nama')
                             <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
@@ -48,7 +48,7 @@
                             Nomor WhatsApp / HP Aktif <span class="text-rose-500">*</span>
                         </label>
                         <input type="tel" name="no_hp" id="no_hp" value="{{ old('no_hp', old('no_telp_client')) }}" required
-                               class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('no_hp') border-rose-400 ring-1 ring-rose-400 @enderror"
+                               class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('no_hp') border-rose-400 ring-1 ring-rose-400 @enderror"
                                placeholder="Contoh: 081234567890">
                         @error('no_hp')
                             <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
@@ -60,7 +60,7 @@
                             Alamat Email <span class="text-rose-500">*</span>
                         </label>
                         <input type="email" name="email" id="email" value="{{ old('email') }}" required
-                               class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('email') border-rose-400 ring-1 ring-rose-400 @enderror"
+                               class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('email') border-rose-400 ring-1 ring-rose-400 @enderror"
                                placeholder="alamat@email.com">
                         @error('email')
                             <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
@@ -72,7 +72,7 @@
                             Nama Usaha / Perusahaan <span class="text-slate-400 font-normal">(Opsional)</span>
                         </label>
                         <input type="text" name="nama_usaha" id="nama_usaha" value="{{ old('nama_usaha') }}"
-                               class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
+                               class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                                placeholder="Contoh: Kafe Kopi Senja, PT. Maju Bersama">
                     </div>
                 </div>
@@ -91,7 +91,7 @@
                         Jenis Properti Bangunan <span class="text-rose-500">*</span>
                     </label>
                     <select name="jenis_properti" id="jenis_properti" required
-                            class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('jenis_properti') border-rose-400 ring-1 ring-rose-400 @enderror">
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('jenis_properti') border-rose-400 ring-1 ring-rose-400 @enderror">
                         <option value="Rumah Tinggal" {{ old('jenis_properti') === 'Rumah Tinggal' ? 'selected' : '' }}>Rumah Tinggal / Residensial</option>
                         <option value="Ruko/Restoran" {{ old('jenis_properti') === 'Ruko/Restoran' ? 'selected' : '' }}>Ruko / Restoran / Kafe / F&B</option>
                         <option value="Kantor/Gedung" {{ old('jenis_properti') === 'Kantor/Gedung' ? 'selected' : '' }}>Kantor / Gedung Komersial</option>
@@ -108,7 +108,7 @@
                         Alamat Lengkap Lokasi Pengerjaan <span class="text-rose-500">*</span>
                     </label>
                     <textarea name="alamat_lokasi" id="alamat_lokasi" rows="3" required
-                              class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('alamat_lokasi') border-rose-400 ring-1 ring-rose-400 @enderror"
+                              class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('alamat_lokasi') border-rose-400 ring-1 ring-rose-400 @enderror"
                               placeholder="Cantumkan jalan, nomor rumah/ruko, RT/RW, kelurahan, kecamatan, dan patokan terdekat...">{{ old('alamat_lokasi', old('alamat_pengerjaan')) }}</textarea>
                     @error('alamat_lokasi')
                         <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
@@ -120,7 +120,7 @@
                         Keluhan & Gangguan Hama yang Ditemukan <span class="text-rose-500">*</span>
                     </label>
                     <textarea name="keluhan" id="keluhan" rows="2.5" required
-                              class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('keluhan') border-rose-400 ring-1 ring-rose-400 @enderror"
+                              class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('keluhan') border-rose-400 ring-1 ring-rose-400 @enderror"
                               placeholder="Ceritakan kendala hama, misal: rayap di kusen pintu dan plafon, sarang tikus di dapur, kecoa di saluran pembuangan...">{{ old('keluhan') }}</textarea>
                     @error('keluhan')
                         <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
@@ -223,7 +223,7 @@
                         Estimasi Luas Area (m2) <span class="text-rose-500">*</span>
                     </label>
                     <input type="number" name="ukuran_area" id="ukuran_area" value="{{ old('ukuran_area', 100) }}" min="1" step="any" required
-                           class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('ukuran_area') border-rose-400 ring-1 ring-rose-400 @enderror"
+                           class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('ukuran_area') border-rose-400 ring-1 ring-rose-400 @enderror"
                            placeholder="Contoh: 120">
                     <p class="mt-1 text-[11px] text-slate-400">Estimasi luas area bangunan atau lahan yang membutuhkan penanganan hama.</p>
                     @error('ukuran_area')

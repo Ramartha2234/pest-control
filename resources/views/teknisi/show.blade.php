@@ -231,7 +231,7 @@
 
                     <div>
                         <input type="text" name="catatan" placeholder="Catatan opsional kehadiran survei..."
-                            class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
                     </div>
 
                     <button type="submit" class="w-full py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
@@ -488,7 +488,7 @@
                         </label>
                         <input type="number" name="harga_diajukan" id="harga_diajukan_input" step="10000" min="10000" required
                             value="{{ old('harga_diajukan', $latestSurvei?->harga_diajukan ?? $pemesanan->harga_estimasi) }}"
-                            class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
                         @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas')
                             <div class="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
                                 <div class="flex items-center justify-between gap-2 text-slate-500 text-[11px]">
@@ -507,7 +507,7 @@
 
                     <div>
                         <input type="text" name="catatan_survei" placeholder="Catatan kesepakatan teknis (opsional)..."
-                            class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
                     </div>
 
                     <button type="submit" class="w-full py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
@@ -587,7 +587,7 @@
 
                     <div>
                         <input type="text" name="catatan" placeholder="Catatan mulai pengerjaan..."
-                            class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
                     </div>
 
                     <button type="submit" class="w-full py-3 px-4 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
@@ -663,7 +663,7 @@
                         <input type="file" name="file_wo" accept=".pdf,image/*" capture="environment" required
                             class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer">
                         <input type="text" name="catatan" placeholder="Catatan dokumen WO (opsional)..."
-                            class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
                         <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
                             <span>{{ $latestWo ? 'Unggah Ulang File WO' : 'Unggah Dokumen WO' }}</span>
                         </button>
@@ -766,7 +766,7 @@
 
                         <div>
                             <input type="text" name="catatan" placeholder="Catatan pembayaran (opsional)..."
-                                class="w-full rounded-xl border-slate-300 px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
                         </div>
 
                         <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">

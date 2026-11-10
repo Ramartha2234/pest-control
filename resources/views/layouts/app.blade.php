@@ -7,6 +7,7 @@
 
     <title>@yield('title', 'CV. Ambius Indonesia')</title>
     <meta name="description" content="@yield('meta_description', 'Jasa pest control profesional oleh CV. Ambius. Pemesanan mudah tanpa registrasi, pantau status pengerjaan secara real-time.')">
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -14,12 +15,8 @@
     {{-- Navigation --}}
     <nav class="sticky top-0 z-50 border-b border-primary-100 bg-white/90 shadow-sm backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-            <a href="{{ route('home') }}" class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500 text-white shadow-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                </div>
+            <a href="{{ route('home') }}" class="flex items-center gap-3 group">
+                <img src="{{ asset('images/logo.png') }}" alt="CV. Ambius Indonesia" class="h-10 w-auto object-contain transition-transform duration-200 group-hover:scale-105">
                 <div>
                     <span class="text-lg font-bold text-primary-700">CV. Ambius Indonesia</span>
                 </div>
@@ -82,10 +79,8 @@
             <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
                 <div>
                     <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500 text-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white p-1.5 shadow-sm">
+                            <img src="{{ asset('images/logo.png') }}" alt="CV. Ambius Indonesia" class="h-full w-auto object-contain">
                         </div>
                         <div>
                             <span class="text-lg font-bold text-white">CV. Ambius Indonesia</span>
