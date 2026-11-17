@@ -34,6 +34,18 @@
             <span class="rounded-full border px-3 py-1 text-xs font-extrabold {{ $pbColor }}">
                 {{ $pemesanan->status_pembayaran }}
             </span>
+            @if ($pemesanan->tgl_verifikasi)
+                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
+                    <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>ACC: {{ $pemesanan->tgl_verifikasi->translatedFormat('d M Y, H:i') }} WITA</span>
+                </span>
+            @endif
+            @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas' && ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp))
+                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
+                    <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>ACC DP: {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)->translatedFormat('d M Y, H:i') }} WITA</span>
+                </span>
+            @endif
         </div>
     </div>
 
@@ -54,6 +66,202 @@
                 ({{ $pemesanan->sisa_waktu_verifikasi }}).
                 Jika tidak diverifikasi hingga batas waktu, sistem otomatis membatalkan pemesanan ini (Auto-Cancel).
             </p>
+        </div>
+    @endif
+
+    {{-- Perhitungan Deviasi Jadwal vs Realisasi --}}
+    @php
+        $jadwalKerjaRaw = $pemesanan->jadwalPenugasan?->tgl_pengerjaan ? \Carbon\Carbon::parse($pemesanan->jadwalPenugasan->tgl_pengerjaan)->toDateString() : null;
+        $realisasiKerjaRaw = $pemesanan->tgl_selesai 
+            ? \Carbon\Carbon::parse($pemesanan->tgl_selesai)->toDateString() 
+            : ($latestBuktiPengerjaan ? $latestBuktiPengerjaan->created_at->toDateString() : ($latestWo?->tgl_pengerjaan ? \Carbon\Carbon::parse($latestWo->tgl_pengerjaan)->toDateString() : null));
+        $isDeviasiJadwal = $jadwalKerjaRaw && $realisasiKerjaRaw && ($jadwalKerjaRaw !== $realisasiKerjaRaw);
+        $diffHariKerja = $isDeviasiJadwal ? \Carbon\Carbon::parse($realisasiKerjaRaw)->diffInDays(\Carbon\Carbon::parse($jadwalKerjaRaw), false) : 0;
+        $realisasiDisplayDate = $realisasiKerjaRaw ? \Carbon\Carbon::parse($realisasiKerjaRaw)->locale('id')->translatedFormat('l, d F Y') : '';
+        $jadwalDisplayDate = $jadwalKerjaRaw ? \Carbon\Carbon::parse($jadwalKerjaRaw)->locale('id')->translatedFormat('l, d F Y') : '';
+
+        $jadwalSurveiRaw = $pemesanan->jadwalPenugasan?->tgl_survei ? \Carbon\Carbon::parse($pemesanan->jadwalPenugasan->tgl_survei)->toDateString() : null;
+        $realisasiSurveiRaw = $latestBuktiSurvei ? $latestBuktiSurvei->created_at->toDateString() : ($latestSurvei ? $latestSurvei->created_at->toDateString() : null);
+        $isDeviasiSurvei = $jadwalSurveiRaw && $realisasiSurveiRaw && ($jadwalSurveiRaw !== $realisasiSurveiRaw);
+        $diffHariSurvei = $isDeviasiSurvei ? \Carbon\Carbon::parse($realisasiSurveiRaw)->diffInDays(\Carbon\Carbon::parse($jadwalSurveiRaw), false) : 0;
+        $realisasiSurveiDisplayDate = $realisasiSurveiRaw ? \Carbon\Carbon::parse($realisasiSurveiRaw)->locale('id')->translatedFormat('l, d F Y') : '';
+        $jadwalSurveiDisplayDate = $jadwalSurveiRaw ? \Carbon\Carbon::parse($jadwalSurveiRaw)->locale('id')->translatedFormat('l, d F Y') : '';
+
+        $isSurveiOverdueIncomplete = $jadwalSurveiRaw 
+            && $jadwalSurveiRaw < now()->toDateString() 
+            && (! $latestBuktiSurvei || $latestBuktiSurvei->status_verifikasi !== 'Disetujui') 
+            && ! in_array($pemesanan->status_pengerjaan, ['Done', 'Cancel']);
+
+        $isKerjaOverdueIncomplete = $jadwalKerjaRaw 
+            && $jadwalKerjaRaw < now()->toDateString() 
+            && ! in_array($pemesanan->status_pengerjaan, ['Done', 'Cancel']);
+    @endphp
+
+    {{-- Banner Peringatan Jadwal Survei Terlewat (Aksi Teknisi Terkunci) --}}
+    @if ($isSurveiOverdueIncomplete)
+        <div class="rounded-2xl border border-rose-300 bg-rose-50/90 p-4 shadow-sm space-y-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-start sm:items-center gap-2.5">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-2xs">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h5 class="text-xs sm:text-sm font-bold text-rose-950">
+                                Perhatian: Jadwal Survei Terlewat &bull; Aksi Teknisi Terkunci Otomatis
+                            </h5>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                Perlu Reschedule
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-rose-900 mt-0.5">
+                            Jadwal survei tercatat: <b>{{ $jadwalSurveiDisplayDate }}</b> telah terlewat. Form teknisi terkunci sampai tanggal jadwal diperbarui.
+                        </p>
+                    </div>
+                </div>
+
+                @if ($pemesanan->jadwalPenugasan)
+                    <div class="shrink-0">
+                        <button type="button" 
+                                onclick="rescheduleSurveiToToday()"
+                                style="background-color: #e11d48 !important; color: #ffffff !important;"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition cursor-pointer active:scale-95">
+                            <svg class="w-4 h-4 text-white shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-white font-bold" style="color: #ffffff !important;">Ubah / Reschedule Jadwal Survei</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    {{-- Banner Peringatan Jadwal Treatment Terlewat (Aksi Teknisi Terkunci) --}}
+    @if ($isKerjaOverdueIncomplete)
+        <div class="rounded-2xl border border-rose-300 bg-rose-50/90 p-4 shadow-sm space-y-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-start sm:items-center gap-2.5">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-2xs">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h5 class="text-xs sm:text-sm font-bold text-rose-950">
+                                Perhatian: Jadwal Pengerjaan Terlewat &bull; Aksi Teknisi Terkunci Otomatis
+                            </h5>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                Perlu Reschedule
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-rose-900 mt-0.5">
+                            Jadwal treatment tercatat: <b>{{ $jadwalDisplayDate }}</b> telah terlewat. Form teknisi terkunci sampai tanggal jadwal diselaraskan ke tanggal pengerjaan baru.
+                        </p>
+                    </div>
+                </div>
+
+                @if ($pemesanan->jadwalPenugasan)
+                    <div class="shrink-0">
+                        <button type="button" 
+                                onclick="rescheduleTreatmentToToday()"
+                                style="background-color: #e11d48 !important; color: #ffffff !important;"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition cursor-pointer active:scale-95">
+                            <svg class="w-4 h-4 text-white shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-white font-bold" style="color: #ffffff !important;">Ubah / Reschedule Jadwal Treatment</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    {{-- Peringatan Deviasi Jadwal vs Realisasi Treatment --}}
+    @if ($isDeviasiJadwal)
+        <div class="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm space-y-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-start sm:items-center gap-2.5">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white shadow-2xs">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h5 class="text-xs sm:text-sm font-bold text-amber-950">
+                                Catatan: Deviasi Tanggal Realisasi Treatment Berbeda dengan Jadwal Awal
+                            </h5>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold {{ $diffHariKerja > 0 ? 'bg-sky-100 text-sky-800 border border-sky-200' : 'bg-rose-100 text-rose-800 border border-rose-200' }}">
+                                {{ $diffHariKerja > 0 ? abs($diffHariKerja) . ' Hari Lebih Cepat' : abs($diffHariKerja) . ' Hari Terlambat' }}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-amber-900 mt-0.5">
+                            Realisasi pengerjaan: <b>{{ $realisasiDisplayDate }}</b> &bull; Jadwal penugasan: <b>{{ $jadwalDisplayDate }}</b>.
+                        </p>
+                    </div>
+                </div>
+
+                @if ($pemesanan->jadwalPenugasan)
+                    <div class="shrink-0">
+                        <button type="button" 
+                                onclick="syncModalTglKerja('{{ $realisasiKerjaRaw }}', '{{ $realisasiDisplayDate }}')"
+                                style="background-color: #d97706 !important; color: #ffffff !important;"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition cursor-pointer active:scale-95">
+                            <svg class="w-4 h-4 text-white shrink-0" style="color: #ffffff !important;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span class="text-white font-bold" style="color: #ffffff !important;">Samakan Jadwal ke Tanggal Realisasi</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    {{-- Peringatan Deviasi Jadwal Survei Lapangan --}}
+    @if ($isDeviasiSurvei)
+        <div class="rounded-2xl border border-sky-300 bg-sky-50/90 p-4 shadow-sm space-y-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-start sm:items-center gap-2.5">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white shadow-2xs">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h5 class="text-xs sm:text-sm font-bold text-sky-950">
+                                Catatan: Realisasi Survei Dilakukan Berbeda Hari dari Jadwal Awal
+                            </h5>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                {{ $diffHariSurvei > 0 ? abs($diffHariSurvei) . ' Hari Lebih Awal' : abs($diffHariSurvei) . ' Hari Terlambat' }}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-sky-900 mt-0.5">
+                            Realisasi survei tercatat: <b>{{ $realisasiSurveiDisplayDate }}</b> &bull; Jadwal penugasan: <b>{{ $jadwalSurveiDisplayDate }}</b>.
+                        </p>
+                    </div>
+                </div>
+
+                @if ($pemesanan->jadwalPenugasan)
+                    <div class="shrink-0">
+                        <button type="button" 
+                                onclick="syncModalTglSurvei('{{ $realisasiSurveiRaw }}', '{{ $realisasiSurveiDisplayDate }}')"
+                                style="background-color: #0284c7 !important; color: #ffffff !important;"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition cursor-pointer active:scale-95">
+                            <svg class="w-4 h-4 text-white shrink-0" style="color: #ffffff !important;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-white font-bold" style="color: #ffffff !important;">Sesuaikan Jadwal Survei</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
         </div>
     @endif
 
@@ -178,11 +386,37 @@
                             </div>
 
                             @if ($isDpLunas)
-                                <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-[11px] text-emerald-950 space-y-1">
-                                    <div class="font-bold text-emerald-800">✓ DP Telah Terverifikasi</div>
-                                    <div class="text-emerald-700">Disetujui pada: {{ $pemesanan->tgl_bayar_dp?->translatedFormat('d M Y H:i') ?? '-' }} WITA</div>
+                                <div class="rounded-xl bg-emerald-50 border-2 border-emerald-300 p-4 text-xs text-emerald-950 space-y-3 shadow-2xs">
+                                    <div class="flex items-center gap-2 font-black text-emerald-900 text-xs sm:text-sm">
+                                        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white shrink-0">
+                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </span>
+                                        <span>DP Telah Di-ACC & Terverifikasi</span>
+                                    </div>
+                                    <div class="space-y-2 text-xs pt-2.5 border-t border-emerald-200">
+                                        <div class="bg-white/80 rounded-xl p-2.5 border border-emerald-200/80">
+                                            <span class="text-[11px] font-semibold text-emerald-800 block">Waktu ACC Admin:</span>
+                                            <strong class="text-emerald-950 font-black block text-xs sm:text-sm mt-0.5">
+                                                {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)?->translatedFormat('d F Y') }} pukul {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)?->format('H:i') }} WITA
+                                            </strong>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                                            <div class="bg-white/80 rounded-xl p-2.5 border border-emerald-200/80">
+                                                <span class="text-gray-500 block">Di-ACC oleh Admin:</span>
+                                                <strong class="text-emerald-900 font-bold block truncate mt-0.5">{{ $pemesanan->admin?->nama ?? 'Admin' }}</strong>
+                                            </div>
+                                            <div class="bg-white/80 rounded-xl p-2.5 border border-emerald-200/80">
+                                                <span class="text-gray-500 block">Nominal DP Lunas:</span>
+                                                <strong class="text-emerald-900 font-black block mt-0.5">Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
                                     @if ($pemesanan->catatan_dp)
-                                        <div class="text-gray-600 pt-1 border-t border-emerald-200/60">Catatan: {{ $pemesanan->catatan_dp }}</div>
+                                        <div class="text-gray-600 pt-1 text-[11px] bg-white/60 rounded-xl p-2.5 border border-emerald-200/70">
+                                            <b class="text-emerald-900">Catatan:</b> {{ $pemesanan->catatan_dp }}
+                                        </div>
                                     @endif
                                 </div>
                             @elseif ($isDpDitolak)
@@ -291,14 +525,74 @@
                         <form action="{{ route('admin.pemesanan.verifikasi-awal', $pemesanan->id_pemesanan) }}" method="POST" class="space-y-4 text-xs">
                             @csrf
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div>
-                                    <label class="block font-semibold text-gray-700 mb-1">Pilih Teknisi Lapangan <span class="text-rose-500">*</span></label>
-                                    <select name="id_teknisi" required class="w-full rounded-xl border-gray-300 px-3.5 py-2.5 text-xs sm:text-sm text-gray-800 focus:border-primary-500 focus:ring-primary-500 shadow-sm transition">
-                                        <option value="">-- Pilih Teknisi --</option>
+                                @php
+                                    $selectedTeknisiId = old('id_teknisi', $pemesanan->jadwalPenugasan?->id_teknisi);
+                                    $selectedTeknisi = $teknisiList->firstWhere('id_pengguna', $selectedTeknisiId);
+                                @endphp
+                                <div class="relative picker-container" id="admin_teknisi_picker_container">
+                                    <label class="block font-semibold text-gray-700 mb-1">
+                                        Pilih Teknisi Lapangan <span class="text-rose-500">*</span>
+                                    </label>
+
+                                    {{-- Trigger Button Teknisi (Desain identik dengan Pemilihan Jasa Hama) --}}
+                                    <button type="button" id="admin_teknisi_picker_trigger"
+                                            class="w-full flex items-center justify-between rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm text-gray-800 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                                        <div class="flex flex-col pr-1 min-w-0">
+                                            <span id="display_admin_teknisi_name" class="font-bold text-gray-900 truncate text-xs sm:text-sm">
+                                                {{ $selectedTeknisi ? $selectedTeknisi->nama : '-- Pilih Teknisi Lapangan --' }}
+                                            </span>
+                                            <span id="display_admin_teknisi_sub" class="text-[11px] text-gray-500 truncate mt-0.5">
+                                                {{ $selectedTeknisi ? ($selectedTeknisi->no_hp ? 'No. HP: ' . $selectedTeknisi->no_hp : 'Teknisi Lapangan') : 'Klik untuk memilih teknisi' }}
+                                            </span>
+                                        </div>
+                                        <span class="shrink-0 flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg transition ml-2">
+                                            <span>Pilih</span>
+                                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                            </svg>
+                                        </span>
+                                    </button>
+
+                                    {{-- Input hidden asli untuk submit form & validasi --}}
+                                    <input type="hidden" name="id_teknisi" id="input_admin_id_teknisi" value="{{ $selectedTeknisiId ?? '' }}" required>
+
+                                    {{-- Popover Dropdown Kustom (Desain kartu rapi serasi dengan pilihan jasa hama) --}}
+                                    <div id="admin_teknisi_picker_popover" class="picker-popover hidden absolute left-0 right-0 sm:min-w-[320px] z-50 mt-1.5 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-2xl max-h-80 overflow-y-auto space-y-1.5 scroll-smooth">
+                                        <div class="px-2.5 py-1.5 border-b border-gray-100 flex items-center justify-between mb-1">
+                                            <span class="text-[11px] font-bold text-gray-800">Daftar Teknisi Lapangan</span>
+                                            <span class="text-[10px] text-gray-400">Pilih salah satu</span>
+                                        </div>
                                         @foreach ($teknisiList as $t)
-                                            <option value="{{ $t->id_pengguna }}">{{ $t->nama }} ({{ $t->no_hp }})</option>
+                                            @php $isOptSelected = ($selectedTeknisiId == $t->id_pengguna); @endphp
+                                            <div data-teknisi-id="{{ $t->id_pengguna }}"
+                                                 data-nama="{{ $t->nama }}"
+                                                 data-sub="{{ $t->no_hp ? 'No. HP: ' . $t->no_hp : 'Teknisi Lapangan' }}"
+                                                 class="teknisi-option-item cursor-pointer p-2.5 rounded-xl border transition flex items-center justify-between gap-3 {{ $isOptSelected ? 'border-emerald-500 bg-emerald-50/70 ring-1 ring-emerald-500' : 'border-gray-100 hover:border-emerald-300 hover:bg-emerald-50/40 bg-white' }}">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                        <span class="text-xs font-bold text-gray-900 leading-snug">{{ $t->nama }}</span>
+                                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                                            Teknisi
+                                                        </span>
+                                                    </div>
+                                                    <p class="text-[11px] text-gray-500 mt-1 flex items-center gap-1.5">
+                                                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                                                        </svg>
+                                                        <span>{{ $t->no_hp ?: 'Tidak ada nomor HP' }}</span>
+                                                    </p>
+                                                </div>
+                                                <div class="shrink-0 flex items-center">
+                                                    <span class="check-icon {{ $isOptSelected ? 'text-emerald-600' : 'text-transparent' }}">
+                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                    </span>
+                                                </div>
+                                            </div>
                                         @endforeach
-                                    </select>
+                                    </div>
+                                    @error('id_teknisi')
+                                        <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                                 @php
                                     $adminTglVal = $pemesanan->tgl_survei_diminta ? \Carbon\Carbon::parse($pemesanan->tgl_survei_diminta)->format('Y-m-d') : date('Y-m-d');
@@ -364,12 +658,17 @@
                                     <input type="hidden" name="jam_survei" id="admin_jam_survei" value="{{ $defaultAdminHour }}:{{ $defaultAdminMinute }}">
 
                                     {{-- Popover Dropdown Scrollable Time Picker (Tanpa AM/PM, Full 24 Jam) --}}
-                                    <div id="admin_time_picker_popover" class="hidden absolute right-0 z-40 mt-1.5 w-64 rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
+                                    <div id="admin_time_picker_popover" class="hidden absolute right-0 z-40 mt-1.5 w-72 sm:w-80 rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
                                         <div class="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
-                                            <span class="text-[11px] font-bold text-gray-800">
-                                                Gulir / Pilih Waktu (24 Jam)
-                                            </span>
-                                            <span class="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">WITA</span>
+                                            <div>
+                                                <span class="text-[11px] font-bold text-gray-800 block">
+                                                    Gulir / Pilih Waktu (24 Jam)
+                                                </span>
+                                                <span id="admin_slot_status_badge" class="inline-block mt-0.5 text-[9px] font-extrabold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                                                    Memeriksa Slot...
+                                                </span>
+                                            </div>
+                                            <span class="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md self-start">WITA</span>
                                         </div>
 
                                         <div class="grid grid-cols-2 gap-2 text-center">
@@ -380,8 +679,9 @@
                                                     @for ($h = 6; $h <= 22; $h++)
                                                         @php $hVal = sprintf('%02d', $h); @endphp
                                                         <button type="button" data-hour="{{ $hVal }}"
-                                                                class="admin-hour-opt w-full py-1.5 text-xs font-bold rounded-lg transition {{ $defaultAdminHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200/80' }}">
-                                                            {{ $hVal }}:00
+                                                                class="admin-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between {{ $defaultAdminHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200/80' }}">
+                                                            <span>{{ $hVal }}:00</span>
+                                                            <span class="admin-hour-slot-badge hidden text-[9px] font-black px-1.5 py-0.5 rounded"></span>
                                                         </button>
                                                     @endfor
                                                 </div>
@@ -414,6 +714,24 @@
                                 </div>
                             </div>
 
+                            {{-- Kotak Rincian Jadwal Teknisi Lapangan Terpilih --}}
+                            <div id="admin_teknisi_jadwal_info_box" class="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs transition">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-slate-800 flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        <span id="admin_info_box_title">Jadwal Teknisi Lapangan</span>
+                                    </span>
+                                    <span id="admin_info_box_status" class="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                                        Memeriksa...
+                                    </span>
+                                </div>
+                                <div id="admin_info_box_content" class="text-[11px] text-slate-600 mt-1">
+                                    Pilih teknisi dan tanggal untuk memeriksa ketersediaan jam penugasan lapangan.
+                                </div>
+                            </div>
+
                             <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
                                 <button type="button" onclick="document.getElementById('modal-tolak-awal').classList.remove('hidden')"
                                         class="rounded-xl border border-rose-300 px-4 py-2 font-bold text-rose-700 hover:bg-rose-50 transition">
@@ -425,6 +743,58 @@
                             </div>
                         </form>
                     @endif
+                </div>
+            @elseif ($pemesanan->tgl_verifikasi)
+                <div class="rounded-2xl border-2 border-emerald-300 bg-emerald-50/60 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-emerald-200/80 flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white font-extrabold text-xs">✓</span>
+                            <div>
+                                <h4 class="text-base font-extrabold text-gray-900">Pemesanan Telah Di-ACC / Diverifikasi</h4>
+                                <p class="text-xs text-emerald-800">Pesanan telah disetujui admin dan penugasan teknisi telah dikonfirmasi.</p>
+                            </div>
+                        </div>
+                        <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            <span>Terverifikasi</span>
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div class="rounded-xl bg-white p-4 border border-emerald-200 shadow-2xs space-y-2">
+                            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Waktu ACC & Petugas</span>
+                            <div class="space-y-1">
+                                <div>
+                                    <span class="text-gray-500 block text-[11px]">Tanggal & Jam di-ACC:</span>
+                                    <span class="text-sm font-black text-emerald-950 block">
+                                        {{ $pemesanan->tgl_verifikasi->translatedFormat('d F Y') }} pukul {{ $pemesanan->tgl_verifikasi->format('H:i') }} WITA
+                                    </span>
+                                </div>
+                                <div class="pt-1 border-t border-gray-100 flex items-center justify-between">
+                                    <span class="text-gray-500 text-[11px]">Di-ACC oleh:</span>
+                                    <span class="font-bold text-gray-900">{{ $pemesanan->admin?->nama ?? 'Admin' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl bg-white p-4 border border-emerald-200 shadow-2xs space-y-2">
+                            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Teknisi & Jadwal Survei</span>
+                            <div class="space-y-1">
+                                <div>
+                                    <span class="text-gray-500 block text-[11px]">Teknisi Lapangan:</span>
+                                    <span class="text-sm font-bold text-gray-900 block">
+                                        {{ $pemesanan->jadwalPenugasan?->teknisi?->nama ?? 'Belum Ditugaskan' }}
+                                    </span>
+                                </div>
+                                <div class="pt-1 border-t border-gray-100 flex items-center justify-between">
+                                    <span class="text-gray-500 text-[11px]">Jadwal Survei:</span>
+                                    <span class="font-bold text-emerald-800">
+                                        {{ $pemesanan->jadwalPenugasan?->tgl_survei ? \Carbon\Carbon::parse($pemesanan->jadwalPenugasan->tgl_survei)->translatedFormat('d F Y') : '-' }} ({{ $pemesanan->jadwalPenugasan?->jam_survei ?? '-' }} WITA)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             @endif
 
@@ -586,12 +956,45 @@
                         @endif
 
                         @if ($latestSurvei->status_verifikasi === 'Menunggu')
+                            @php
+                                $statusService = app(\App\Services\PemesananStatusService::class);
+                                $bentrokPengerjaan = $statusService->cekBentrokJadwalTeknisi(
+                                    $latestSurvei->id_teknisi,
+                                    (string) $latestSurvei->tgl_pengerjaan_diajukan,
+                                    (string) $latestSurvei->jam_pengerjaan_diajukan,
+                                    $pemesanan->id_pemesanan
+                                );
+                            @endphp
+
+                            @if ($bentrokPengerjaan)
+                                <div class="rounded-xl border-2 border-rose-300 bg-rose-50 p-3.5 space-y-1.5 text-xs text-rose-950">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="rounded-full bg-rose-200 text-rose-900 border border-rose-300 px-2.5 py-0.5 text-[10px] font-black">
+                                            Jadwal Bertabrakan / Penuh
+                                        </span>
+                                        <span class="font-extrabold text-xs sm:text-sm">Perhatian: Teknisi Sudah Memiliki Pekerjaan di Waktu Ini!</span>
+                                    </div>
+                                    <p class="leading-relaxed text-[11px] text-rose-900">
+                                        Teknisi <b>{{ $latestSurvei->teknisi?->nama ?? 'terpilih' }}</b> sudah memiliki jadwal penugasan pada <b>{{ \Carbon\Carbon::parse($latestSurvei->tgl_pengerjaan_diajukan)->locale('id')->translatedFormat('l, d F Y') }}</b> pukul <b>{{ substr((string)$latestSurvei->jam_pengerjaan_diajukan, 0, 5) }} WITA</b> (Pesanan <b>{{ $bentrokPengerjaan->pemesanan?->kode_pemesanan ?? '#'.$bentrokPengerjaan->id_pemesanan }}</b>).
+                                    </p>
+                                    <p class="text-[11px] text-rose-800 italic bg-white/80 p-2 rounded-lg border border-rose-200 leading-relaxed">
+                                        Sistem mencegah 1 teknisi bertugas pada waktu yang sama. Silakan tolak pengajuan ini dengan memberikan catatan alasan agar teknisi bernegosiasi memilih jadwal lain bersama pelanggan.
+                                    </p>
+                                </div>
+                            @endif
+
                             <form action="{{ route('admin.verifikasi.hasil-survei', $latestSurvei->id_hasil_survei) }}" method="POST" class="pt-3 border-t border-gray-200 space-y-2.5">
                                 @csrf
-                                <input type="text" name="alasan_penolakan" placeholder="Wajib diisi jika menolak hasil survei ini..." class="w-full rounded-xl border-gray-300 px-4 py-2.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition">
+                                <input type="text" name="alasan_penolakan" placeholder="{{ $bentrokPengerjaan ? 'Wajib diisi (contoh: Jadwal bentrok dengan pesanan lain, harap ajukan jam/hari lain)...' : 'Wajib diisi jika menolak hasil survei ini...' }}" class="w-full rounded-xl border-gray-300 px-4 py-2.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition">
                                 <div class="flex flex-wrap justify-end gap-2 pt-1">
                                     <button type="submit" name="aksi" value="tolak" class="px-4 py-2 rounded-xl bg-rose-600 font-bold text-xs sm:text-sm text-white hover:bg-rose-700 shadow-sm transition">Tolak Kesepakatan</button>
-                                    <button type="submit" name="aksi" value="setujui" class="px-5 py-2 rounded-xl bg-emerald-600 font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 shadow-sm transition">Setujui & Perbarui Jadwal Treatment</button>
+                                    @if ($bentrokPengerjaan)
+                                        <button type="button" class="px-5 py-2 rounded-xl bg-gray-400 font-bold text-xs sm:text-sm text-white cursor-not-allowed opacity-60 shadow-sm" disabled title="Jadwal teknisi bertabrakan dengan pesanan {{ $bentrokPengerjaan->pemesanan?->kode_pemesanan ?? '#'.$bentrokPengerjaan->id_pemesanan }}">
+                                            Setujui (Jadwal Bentrok)
+                                        </button>
+                                    @else
+                                        <button type="submit" name="aksi" value="setujui" class="px-5 py-2 rounded-xl bg-emerald-600 font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 shadow-sm transition">Setujui & Perbarui Jadwal Treatment</button>
+                                    @endif
                                 </div>
                             </form>
                         @endif
@@ -761,9 +1164,16 @@
                         </div>
                         <div class="flex items-center justify-between text-[11px] pb-1">
                             <span class="text-gray-500 font-medium">Status DP:</span>
-                            <span class="font-extrabold px-2.5 py-0.5 rounded-full {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
-                                {{ $pemesanan->status_dp === 'Lunas' ? 'Lunas' : 'Belum Dibayar' }}
-                            </span>
+                            <div class="text-right">
+                                <span class="font-extrabold px-2.5 py-0.5 rounded-full {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                    {{ $pemesanan->status_dp === 'Lunas' ? 'Lunas' : 'Belum Dibayar' }}
+                                </span>
+                                @if ($pemesanan->status_dp === 'Lunas' && ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp))
+                                    <span class="block text-[10px] text-emerald-700 font-bold mt-1">
+                                        Di-ACC: {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)->translatedFormat('d/m/Y H:i') }} WITA
+                                    </span>
+                                @endif
+                            </div>
                         </div>
                     @endif
                     <div class="flex items-center justify-between pt-2 border-t border-gray-100">
@@ -822,22 +1232,94 @@
                     </div>
 
                     <div class="pt-2 border-t border-gray-100">
-                        <span class="text-gray-400 font-semibold block">Jadwal Survei</span>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 font-semibold block">Jadwal Survei</span>
+                            @if ($isDeviasiSurvei)
+                                <span class="rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                                    Deviasi Survei
+                                </span>
+                            @endif
+                        </div>
                         <span class="font-bold text-gray-800 block mt-0.5">
                             {{ $pemesanan->jadwalPenugasan?->tgl_survei ? \Carbon\Carbon::parse($pemesanan->jadwalPenugasan->tgl_survei)->format('d M Y') : '-' }}
                             ({{ $pemesanan->jadwalPenugasan?->jam_survei ?? '-' }})
                         </span>
+                        @if ($isDeviasiSurvei)
+                            <div class="mt-1 text-[11px] text-sky-800 bg-sky-50 p-2 rounded-lg border border-sky-200">
+                                Realisasi survei: <b>{{ $realisasiSurveiDisplayDate }}</b>.
+                                <a href="javascript:void(0)" onclick="syncModalTglSurvei('{{ $realisasiSurveiRaw }}', '{{ $realisasiSurveiDisplayDate }}')" class="font-bold text-sky-700 underline block mt-0.5">
+                                    Sesuaikan jadwal survei &rarr;
+                                </a>
+                            </div>
+                        @endif
                     </div>
 
                     <div class="pt-2 border-t border-gray-100">
-                        <span class="text-gray-400 font-semibold block">Jadwal Pengerjaan (Treatment)</span>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 font-semibold block">Jadwal Pengerjaan (Treatment)</span>
+                            @if ($isDeviasiJadwal)
+                                <span class="rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                    Deviasi Jadwal
+                                </span>
+                            @endif
+                        </div>
                         <span class="font-bold text-gray-800 block mt-0.5">
                             {{ $pemesanan->jadwalPenugasan?->tgl_pengerjaan ? \Carbon\Carbon::parse($pemesanan->jadwalPenugasan->tgl_pengerjaan)->format('d M Y') : 'Menunggu deal survei' }}
                             @if ($pemesanan->jadwalPenugasan?->jam_pengerjaan)
                                 ({{ $pemesanan->jadwalPenugasan->jam_pengerjaan }})
                             @endif
                         </span>
+                        @php
+                            $statusService = app(\App\Services\PemesananStatusService::class);
+                            $bentrokTreatmentAktif = null;
+                            if ($pemesanan->jadwalPenugasan?->id_teknisi && $pemesanan->jadwalPenugasan?->tgl_pengerjaan && $pemesanan->jadwalPenugasan?->jam_pengerjaan) {
+                                $bentrokTreatmentAktif = $statusService->cekBentrokJadwalTeknisi(
+                                    $pemesanan->jadwalPenugasan->id_teknisi,
+                                    (string) $pemesanan->jadwalPenugasan->tgl_pengerjaan,
+                                    (string) $pemesanan->jadwalPenugasan->jam_pengerjaan,
+                                    $pemesanan->id_pemesanan
+                                );
+                            }
+                        @endphp
+                        @if ($bentrokTreatmentAktif)
+                            <div class="mt-1 text-[11px] text-rose-800 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                                <b>Jadwal Bentrok:</b> Teknisi memiliki pekerjaan lain di pesanan <b>{{ $bentrokTreatmentAktif->pemesanan?->kode_pemesanan ?? '#'.$bentrokTreatmentAktif->id_pemesanan }}</b> pada waktu yang sama.
+                                @if (in_array($pemesanan->status_pengerjaan, ['Menunggu Treatment', 'Treatment Berlangsung', 'Menunggu Konfirmasi']))
+                                    <button type="button" onclick="document.getElementById('modal-ubah-jadwal').classList.remove('hidden')" class="font-bold text-rose-700 underline block mt-0.5">
+                                        Ubah / Reschedule Jadwal &rarr;
+                                    </button>
+                                @endif
+                            </div>
+                        @endif
+                        @if ($isDeviasiJadwal)
+                            <div class="mt-1 text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                                Realisasi pengerjaan: <b>{{ $realisasiDisplayDate }}</b>.
+                                <a href="javascript:void(0)" onclick="syncModalTglKerja('{{ $realisasiKerjaRaw }}', '{{ $realisasiDisplayDate }}')" class="font-bold text-primary-700 underline block mt-0.5">
+                                    Samakan jadwal sekarang &rarr;
+                                </a>
+                            </div>
+                        @endif
                     </div>
+
+                    @if ($pemesanan->tgl_verifikasi)
+                        <div class="pt-2 border-t border-gray-100">
+                            <span class="text-gray-400 font-semibold block">Waktu ACC Pesanan</span>
+                            <span class="font-bold text-emerald-800 block mt-0.5">
+                                {{ $pemesanan->tgl_verifikasi->translatedFormat('d M Y') }} pukul {{ $pemesanan->tgl_verifikasi->format('H:i') }} WITA
+                            </span>
+                            <span class="text-[11px] text-gray-500 block">Diverifikasi oleh: {{ $pemesanan->admin?->nama ?? 'Admin' }}</span>
+                        </div>
+                    @endif
+
+                    @if ($pemesanan->wajib_dp && $pemesanan->status_dp === 'Lunas' && ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp))
+                        <div class="pt-2 border-t border-gray-100">
+                            <span class="text-gray-400 font-semibold block">Waktu ACC DP</span>
+                            <span class="font-bold text-emerald-800 block mt-0.5">
+                                {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)->translatedFormat('d M Y') }} pukul {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)->format('H:i') }} WITA
+                            </span>
+                            <span class="text-[11px] text-gray-500 block">Nominal: Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -1225,6 +1707,7 @@
                         e.stopPropagation();
                         selectedDate = currDate;
                         input.value = formatDateString(selectedDate);
+                        input.dispatchEvent(new Event('change'));
                         display.textContent = formatDisplayDate(selectedDate);
                         if (previewEl) previewEl.textContent = formatDisplayDate(selectedDate);
                         renderCalendar();
@@ -1247,11 +1730,32 @@
                     if (p !== popover) p.classList.add('hidden');
                 });
                 if (isHidden) {
+                    if (input.value) {
+                        selectedDate = new Date(input.value + 'T00:00:00');
+                        viewDate = new Date(selectedDate);
+                    } else {
+                        selectedDate = null;
+                        viewDate = new Date();
+                    }
                     popover.classList.remove('hidden');
                     renderCalendar();
                 } else {
                     popover.classList.add('hidden');
                 }
+            });
+
+            input.addEventListener('change', function () {
+                if (input.value) {
+                    selectedDate = new Date(input.value + 'T00:00:00');
+                    viewDate = new Date(selectedDate);
+                } else {
+                    selectedDate = null;
+                    viewDate = new Date();
+                }
+                if (previewEl) {
+                    previewEl.textContent = selectedDate ? formatDisplayDate(selectedDate) : 'Belum dipilih';
+                }
+                renderCalendar();
             });
 
             if (btnPrev) {
@@ -1285,6 +1789,7 @@
                     e.stopPropagation();
                     selectedDate = null;
                     input.value = '';
+                    input.dispatchEvent(new Event('change'));
                     display.textContent = '-- Pilih Tanggal --';
                     if (previewEl) previewEl.textContent = 'Belum dipilih';
                     renderCalendar();
@@ -1293,12 +1798,16 @@
             }
         }
 
+        const semuaJadwalSibukTeknisi = @json($semuaJadwalSibukTeknisi ?? []);
+        let adminJadwalSibukTeknisi = @json($jadwalSibukTeknisi ?? []);
+
         function initCustomTimePicker(config) {
             const container = document.getElementById(config.containerId);
             const trigger = document.getElementById(config.triggerId);
             const popover = document.getElementById(config.popoverId);
             const input = document.getElementById(config.inputId);
             const display = document.getElementById(config.displayId);
+            const dateInput = config.dateInputId ? document.getElementById(config.dateInputId) : null;
             if (!container || !trigger || !popover || !input || !display) return;
 
             let parts = (input.value || '').split(':');
@@ -1324,13 +1833,45 @@
             }
 
             function syncButtons() {
+                const dateVal = dateInput ? dateInput.value : '';
+                const dayData = adminJadwalSibukTeknisi[dateVal] || { jam: [], detail: {} };
+                const busyHours = dayData.jam || [];
+                const busyDetails = dayData.detail || {};
+
                 popover.querySelectorAll('.btn-hour-opt').forEach(btn => {
-                    if (btn.getAttribute('data-hour') === currentHour && hasValue) {
-                        btn.className = 'btn-hour-opt w-full py-1 text-xs font-bold rounded-lg transition bg-emerald-600 text-white shadow-sm';
+                    const hVal = btn.getAttribute('data-hour');
+                    const isBusy = busyHours.includes(hVal);
+
+                    if (isBusy) {
+                        btn.disabled = true;
+                        const det = busyDetails[hVal];
+                        const detInfo = det ? (det.jam + ' - ' + det.kode) : (hVal + ':00');
+                        btn.setAttribute('title', 'Slot jam ini sudah terisi penugasan ' + detInfo);
+                        btn.className = 'btn-hour-opt w-full py-1 text-xs font-bold rounded-lg transition bg-gray-100 text-gray-400 cursor-not-allowed opacity-50 line-through';
                     } else {
-                        btn.className = 'btn-hour-opt w-full py-1 text-xs font-bold rounded-lg transition text-gray-700 hover:bg-gray-200/80';
+                        btn.disabled = false;
+                        btn.removeAttribute('title');
+                        if (hVal === currentHour && hasValue) {
+                            btn.className = 'btn-hour-opt w-full py-1 text-xs font-bold rounded-lg transition bg-emerald-600 text-white shadow-sm';
+                        } else {
+                            btn.className = 'btn-hour-opt w-full py-1 text-xs font-bold rounded-lg transition text-gray-700 hover:bg-gray-200/80';
+                        }
                     }
                 });
+
+                if (hasValue && busyHours.includes(currentHour)) {
+                    let firstFree = null;
+                    popover.querySelectorAll('.btn-hour-opt').forEach(b => {
+                        if (!b.disabled && !firstFree) firstFree = b;
+                    });
+                    if (firstFree) {
+                        currentHour = firstFree.getAttribute('data-hour');
+                        updateTimeDisplay();
+                        syncButtons();
+                        return;
+                    }
+                }
+
                 popover.querySelectorAll('.btn-minute-opt').forEach(btn => {
                     if (btn.getAttribute('data-minute') === currentMinute && hasValue) {
                         btn.className = 'btn-minute-opt w-full py-1 text-xs font-bold rounded-lg transition bg-emerald-600 text-white shadow-sm';
@@ -1338,6 +1879,10 @@
                         btn.className = 'btn-minute-opt w-full py-1 text-xs font-bold rounded-lg transition text-gray-700 hover:bg-gray-200/80';
                     }
                 });
+            }
+
+            if (dateInput) {
+                dateInput.addEventListener('change', syncButtons);
             }
 
             trigger.addEventListener('click', function (e) {
@@ -1405,6 +1950,12 @@
                 });
             }
 
+            if (dateInput) {
+                dateInput.addEventListener('change', function () {
+                    syncButtons();
+                });
+            }
+
             updateTimeDisplay();
             syncButtons();
         }
@@ -1439,7 +1990,8 @@
             triggerId: 'trigger_modal_jam_survei',
             popoverId: 'popover_modal_jam_survei',
             inputId: 'input_modal_jam_survei',
-            displayId: 'display_modal_jam_survei'
+            displayId: 'display_modal_jam_survei',
+            dateInputId: 'input_modal_tgl_survei'
         });
 
         initCustomDatePicker({
@@ -1455,10 +2007,11 @@
             triggerId: 'trigger_modal_jam_pengerjaan',
             popoverId: 'popover_modal_jam_pengerjaan',
             inputId: 'input_modal_jam_pengerjaan',
-            displayId: 'display_modal_jam_pengerjaan'
+            displayId: 'display_modal_jam_pengerjaan',
+            dateInputId: 'input_modal_tgl_pengerjaan'
         });
 
-        // --- Verifikasi Survei Time Picker (Existing) ---
+        // --- Verifikasi Survei & Penugasan Teknisi (Alur 2) ---
         const adminTimePickerContainer = document.getElementById('admin_time_picker_container');
         const adminTimePickerTrigger = document.getElementById('admin_time_picker_trigger');
         const adminTimePickerPopover = document.getElementById('admin_time_picker_popover');
@@ -1466,25 +2019,173 @@
         const adminDisplayTimeBtn = document.getElementById('admin_display_time_btn');
         const adminPopoverPreviewText = document.getElementById('admin_popover_preview_text');
         const adminBtnConfirmTime = document.getElementById('admin_btn_confirm_time');
+        const adminHiddenTgl = document.getElementById('input_admin_tgl_survei');
+        const adminTeknisiContainer = document.getElementById('admin_teknisi_picker_container');
+        const adminTeknisiTrigger = document.getElementById('admin_teknisi_picker_trigger');
+        const adminTeknisiPopover = document.getElementById('admin_teknisi_picker_popover');
+        const adminHiddenTeknisi = document.getElementById('input_admin_id_teknisi');
+        const displayAdminTeknisiName = document.getElementById('display_admin_teknisi_name');
+        const displayAdminTeknisiSub = document.getElementById('display_admin_teknisi_sub');
+
+        let currentHour = "{{ $defaultAdminHour ?? '09' }}";
+        let currentMinute = "{{ $defaultAdminMinute ?? '00' }}";
+
+        function updateAdminTimeDisplay() {
+            const timeFormatted = currentHour + ':' + currentMinute;
+            if (adminHiddenJam) adminHiddenJam.value = timeFormatted;
+            if (adminDisplayTimeBtn) adminDisplayTimeBtn.textContent = timeFormatted + ' WITA';
+            if (adminPopoverPreviewText) adminPopoverPreviewText.textContent = timeFormatted + ' WITA';
+        }
+
+        function scrollAdminToActive() {
+            if (!adminTimePickerPopover) return;
+            const activeH = adminTimePickerPopover.querySelector('.admin-hour-opt.bg-emerald-600');
+            const activeM = adminTimePickerPopover.querySelector('.admin-minute-opt.bg-emerald-600');
+            if (activeH) activeH.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            if (activeM) activeM.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+
+        function syncAdminVerificationSlots() {
+            if (!adminTimePickerPopover) return;
+            const teknisiId = adminHiddenTeknisi ? adminHiddenTeknisi.value : null;
+            const tglVal = adminHiddenTgl ? adminHiddenTgl.value : null;
+            const statusBadge = document.getElementById('admin_slot_status_badge');
+            const infoTitle = document.getElementById('admin_info_box_title');
+            const infoStatus = document.getElementById('admin_info_box_status');
+            const infoContent = document.getElementById('admin_info_box_content');
+            const tekName = displayAdminTeknisiName ? displayAdminTeknisiName.textContent.trim() : 'Teknisi';
+
+            if (!teknisiId || !tglVal) {
+                if (statusBadge) {
+                    statusBadge.textContent = 'Pilih teknisi & tanggal';
+                    statusBadge.className = 'inline-block mt-0.5 text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded';
+                }
+                if (infoContent) infoContent.innerHTML = 'Pilih teknisi dan tanggal untuk memeriksa slot jam penugasan yang tersedia.';
+                return;
+            }
+
+            function applySlots(scheduleData) {
+                const dayData = (scheduleData && scheduleData[tglVal]) ? scheduleData[tglVal] : { jam: [], detail: {} };
+                const busyHours = Array.isArray(dayData.jam) ? dayData.jam : [];
+                const busyDetails = dayData.detail || {};
+                const hourBtns = adminTimePickerPopover.querySelectorAll('.admin-hour-opt');
+                let bookedCount = 0;
+
+                hourBtns.forEach(btn => {
+                    const hourVal = btn.getAttribute('data-hour');
+                    const badge = btn.querySelector('.admin-hour-slot-badge');
+                    const isBusy = busyHours.includes(hourVal);
+
+                    if (isBusy) {
+                        bookedCount++;
+                        btn.disabled = true;
+                        const det = busyDetails[hourVal];
+                        const detType = det ? det.tipe : 'Jadwal';
+                        const detKode = det ? det.kode : '';
+                        btn.setAttribute('title', `Teknisi sudah ada tugas ${detType} (${detKode}) pada jam ${hourVal}:00 WITA.`);
+                        btn.className = 'admin-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between bg-slate-100 text-slate-400 cursor-not-allowed opacity-60 line-through';
+                        if (badge) {
+                            badge.textContent = `Penuh: ${detType === 'Pengerjaan' ? 'Kerja' : 'Survei'}`;
+                            badge.className = 'admin-hour-slot-badge text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded';
+                            badge.classList.remove('hidden');
+                        }
+                    } else {
+                        btn.disabled = false;
+                        btn.removeAttribute('title');
+                        if (hourVal === currentHour) {
+                            btn.className = 'admin-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between bg-emerald-600 text-white shadow-sm';
+                        } else {
+                            btn.className = 'admin-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between text-gray-700 hover:bg-gray-200/80';
+                        }
+                        if (badge) {
+                            badge.textContent = '';
+                            badge.classList.add('hidden');
+                        }
+                    }
+                });
+
+                if (statusBadge) {
+                    if (bookedCount > 0) {
+                        statusBadge.textContent = `${bookedCount} Jam Penuh`;
+                        statusBadge.className = 'inline-block mt-0.5 text-[9px] font-extrabold text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded';
+                    } else {
+                        statusBadge.textContent = 'Semua Jam Tersedia';
+                        statusBadge.className = 'inline-block mt-0.5 text-[9px] font-extrabold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded';
+                    }
+                }
+
+                // Jika jam saat ini bentrok, otomatis alihkan ke jam pertama yang tersedia!
+                if (busyHours.includes(currentHour)) {
+                    let firstAvailable = null;
+                    hourBtns.forEach(b => {
+                        if (!b.disabled && !firstAvailable) firstAvailable = b;
+                    });
+                    if (firstAvailable) {
+                        currentHour = firstAvailable.getAttribute('data-hour');
+                        hourBtns.forEach(b => {
+                            if (!b.disabled) {
+                                if (b.getAttribute('data-hour') === currentHour) {
+                                    b.className = 'admin-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between bg-emerald-600 text-white shadow-sm';
+                                } else {
+                                    b.className = 'admin-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between text-gray-700 hover:bg-gray-200/80';
+                                }
+                            }
+                        });
+                        updateAdminTimeDisplay();
+                    }
+                }
+
+                // Update info summary box
+                if (infoTitle) infoTitle.textContent = `Jadwal Teknisi: ${tekName}`;
+                if (infoStatus) {
+                    if (bookedCount > 0) {
+                        infoStatus.textContent = `${bookedCount} Jam Terisi`;
+                        infoStatus.className = 'text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md';
+                    } else {
+                        infoStatus.textContent = 'Tersedia Penuh';
+                        infoStatus.className = 'text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md';
+                    }
+                }
+                if (infoContent) {
+                    if (bookedCount > 0) {
+                        let pillsHtml = '<div class="flex flex-wrap gap-2 mt-1.5">';
+                        Object.keys(busyDetails).sort().forEach(h => {
+                            const d = busyDetails[h];
+                            pillsHtml += `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border border-rose-200 bg-rose-50 text-rose-800">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                <span>${d.jam} WITA • ${d.tipe} (${d.kode})</span>
+                            </span>`;
+                        });
+                        pillsHtml += '</div>';
+                        infoContent.innerHTML = `<p class="leading-relaxed font-semibold text-slate-700">Teknisi <b>${tekName}</b> memiliki ${bookedCount} penugasan pada tanggal ini:</p>${pillsHtml}<p class="mt-1 text-[10px] text-slate-500">Slot jam di atas otomatis dikunci dan diberi tanda 'Penuh' agar survei tidak saling bertabrakan.</p>`;
+                    } else {
+                        infoContent.innerHTML = `<p class="text-slate-600">Seluruh slot jam operasional (06:00 - 22:00 WITA) untuk teknisi <b>${tekName}</b> masih kosong dan siap ditugaskan pada tanggal ini.</p>`;
+                    }
+                }
+            }
+
+            if (semuaJadwalSibukTeknisi && semuaJadwalSibukTeknisi[teknisiId]) {
+                applySlots(semuaJadwalSibukTeknisi[teknisiId]);
+            } else {
+                if (statusBadge) {
+                    statusBadge.textContent = 'Memeriksa slot...';
+                    statusBadge.className = 'inline-block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded';
+                }
+                fetch(`{{ route('jadwal.slot-teknisi') }}?id_teknisi=${encodeURIComponent(teknisiId)}&id_pemesanan={{ $pemesanan->id_pemesanan }}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const resJadwal = data.jadwal || {};
+                        semuaJadwalSibukTeknisi[teknisiId] = resJadwal;
+                        applySlots(resJadwal);
+                    })
+                    .catch(err => {
+                        console.error('Gagal mengambil jadwal sibuk teknisi:', err);
+                        applySlots({});
+                    });
+            }
+        }
 
         if (adminTimePickerTrigger && adminTimePickerPopover) {
-            let currentHour = "{{ $defaultAdminHour ?? '09' }}";
-            let currentMinute = "{{ $defaultAdminMinute ?? '00' }}";
-
-            function updateAdminTimeDisplay() {
-                const timeFormatted = currentHour + ':' + currentMinute;
-                if (adminHiddenJam) adminHiddenJam.value = timeFormatted;
-                if (adminDisplayTimeBtn) adminDisplayTimeBtn.textContent = timeFormatted + ' WITA';
-                if (adminPopoverPreviewText) adminPopoverPreviewText.textContent = timeFormatted + ' WITA';
-            }
-
-            function scrollAdminToActive() {
-                const activeH = adminTimePickerPopover.querySelector('.admin-hour-opt.bg-emerald-600');
-                const activeM = adminTimePickerPopover.querySelector('.admin-minute-opt.bg-emerald-600');
-                if (activeH) activeH.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                if (activeM) activeM.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            }
-
             adminTimePickerTrigger.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1492,6 +2193,7 @@
                 document.querySelectorAll('.picker-popover').forEach(p => p.classList.add('hidden'));
                 if (isHidden) {
                     adminTimePickerPopover.classList.remove('hidden');
+                    syncAdminVerificationSlots();
                     setTimeout(scrollAdminToActive, 60);
                 } else {
                     adminTimePickerPopover.classList.add('hidden');
@@ -1515,9 +2217,12 @@
                 btn.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (this.disabled) return;
                     adminTimePickerPopover.querySelectorAll('.admin-hour-opt').forEach(function (b) {
-                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
-                        b.classList.add('text-gray-700', 'hover:bg-gray-200/80');
+                        if (!b.disabled) {
+                            b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                            b.classList.add('text-gray-700', 'hover:bg-gray-200/80');
+                        }
                     });
                     this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
                     this.classList.remove('text-gray-700', 'hover:bg-gray-200/80');
@@ -1542,6 +2247,112 @@
             });
 
             updateAdminTimeDisplay();
+        }
+
+        // --- Custom Teknisi Picker ---
+        if (adminTeknisiTrigger && adminTeknisiPopover) {
+            adminTeknisiTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = adminTeknisiPopover.classList.contains('hidden');
+                document.querySelectorAll('.picker-popover').forEach(p => {
+                    if (p !== adminTeknisiPopover) p.classList.add('hidden');
+                });
+                if (typeof adminTimePickerPopover !== 'undefined' && adminTimePickerPopover) {
+                    adminTimePickerPopover.classList.add('hidden');
+                }
+                if (isHidden) {
+                    adminTeknisiPopover.classList.remove('hidden');
+                    const selectedItem = adminTeknisiPopover.querySelector('.teknisi-option-item.border-emerald-500');
+                    if (selectedItem) {
+                        selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                } else {
+                    adminTeknisiPopover.classList.add('hidden');
+                }
+            });
+
+            adminTeknisiPopover.querySelectorAll('.teknisi-option-item').forEach(function (item) {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const teknisiId = this.getAttribute('data-teknisi-id');
+                    const nama = this.getAttribute('data-nama');
+                    const sub = this.getAttribute('data-sub');
+
+                    adminTeknisiPopover.querySelectorAll('.teknisi-option-item').forEach(function (el) {
+                        el.classList.remove('border-emerald-500', 'bg-emerald-50/70', 'ring-1', 'ring-emerald-500');
+                        el.classList.add('border-gray-100', 'bg-white');
+                        const check = el.querySelector('.check-icon');
+                        if (check) {
+                            check.classList.remove('text-emerald-600');
+                            check.classList.add('text-transparent');
+                        }
+                    });
+
+                    this.classList.add('border-emerald-500', 'bg-emerald-50/70', 'ring-1', 'ring-emerald-500');
+                    this.classList.remove('border-gray-100', 'bg-white');
+                    const myCheck = this.querySelector('.check-icon');
+                    if (myCheck) {
+                        myCheck.classList.remove('text-transparent');
+                        myCheck.classList.add('text-emerald-600');
+                    }
+
+                    if (displayAdminTeknisiName) displayAdminTeknisiName.textContent = nama;
+                    if (displayAdminTeknisiSub) displayAdminTeknisiSub.textContent = sub;
+
+                    if (adminHiddenTeknisi) {
+                        adminHiddenTeknisi.value = teknisiId;
+                        adminHiddenTeknisi.dispatchEvent(new Event('change'));
+                    }
+
+                    if (adminTeknisiTrigger) {
+                        adminTeknisiTrigger.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+                    }
+
+                    adminTeknisiPopover.classList.add('hidden');
+                    syncAdminVerificationSlots();
+                });
+            });
+
+            // Listener jika teknisi atau tanggal survei berubah
+            if (adminHiddenTeknisi) {
+                adminHiddenTeknisi.addEventListener('change', syncAdminVerificationSlots);
+            }
+            if (adminHiddenTgl) {
+                adminHiddenTgl.addEventListener('change', syncAdminVerificationSlots);
+            }
+
+            // Validasi client-side saat submit
+            if (adminTeknisiContainer) {
+                const parentForm = adminTeknisiContainer.closest('form');
+                if (parentForm) {
+                    parentForm.addEventListener('submit', function (e) {
+                        if (!adminHiddenTeknisi || !adminHiddenTeknisi.value) {
+                            e.preventDefault();
+                            adminTeknisiTrigger.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
+                            adminTeknisiPopover.classList.remove('hidden');
+                            adminTeknisiTrigger.focus();
+                            return;
+                        }
+
+                        const tekId = adminHiddenTeknisi.value;
+                        const tglVal = adminHiddenTgl ? adminHiddenTgl.value : null;
+                        if (tekId && tglVal) {
+                            const dayData = (semuaJadwalSibukTeknisi[tekId] && semuaJadwalSibukTeknisi[tekId][tglVal]) || { jam: [] };
+                            const busyHours = dayData.jam || [];
+                            if (busyHours.includes(currentHour)) {
+                                e.preventDefault();
+                                alert(`Jadwal bentrok: Jam ${currentHour}:00 WITA sudah penuh untuk teknisi terpilih pada tanggal ini. Silakan pilih jam atau teknisi lain.`);
+                                if (adminTimePickerPopover) adminTimePickerPopover.classList.remove('hidden');
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Inisialisasi awal slot ketersediaan teknisi saat load
+            syncAdminVerificationSlots();
         }
     });
 
@@ -1569,5 +2380,73 @@
             container.classList.add('hidden');
         }
     }
+
+    window.getTodayFormatted = function () {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const ymd = `${y}-${m}-${d}`;
+
+        const indoMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const indoDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const text = `${indoDays[now.getDay()]}, ${now.getDate()} ${indoMonths[now.getMonth()]} ${y}`;
+
+        return { ymd, text };
+    };
+
+    window.rescheduleTreatmentToToday = function () {
+        const today = window.getTodayFormatted();
+        window.syncModalTglKerja(today.ymd, today.text);
+    };
+
+    window.rescheduleSurveiToToday = function () {
+        const today = window.getTodayFormatted();
+        window.syncModalTglSurvei(today.ymd, today.text);
+    };
+
+    window.syncModalTglKerja = function (ymd, text) {
+        const modal = document.getElementById('modal-ubah-jadwal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+        const input = document.getElementById('input_modal_tgl_pengerjaan');
+        const display = document.getElementById('display_modal_tgl_pengerjaan');
+        if (input) {
+            input.value = ymd;
+            input.dispatchEvent(new Event('change'));
+        }
+        if (display) display.textContent = text;
+        const container = document.getElementById('container_modal_tgl_pengerjaan');
+        if (container) {
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            container.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl', 'transition-all');
+            setTimeout(() => {
+                container.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2');
+            }, 1800);
+        }
+    };
+
+    window.syncModalTglSurvei = function (ymd, text) {
+        const modal = document.getElementById('modal-ubah-jadwal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+        const input = document.getElementById('input_modal_tgl_survei');
+        const display = document.getElementById('display_modal_tgl_survei');
+        if (input) {
+            input.value = ymd;
+            input.dispatchEvent(new Event('change'));
+        }
+        if (display) display.textContent = text;
+        const container = document.getElementById('container_modal_tgl_survei');
+        if (container) {
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            container.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl', 'transition-all');
+            setTimeout(() => {
+                container.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2');
+            }, 1800);
+        }
+    };
 </script>
 @endsection

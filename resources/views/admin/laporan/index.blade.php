@@ -118,13 +118,21 @@
                             $wo = $item->workOrders->first();
                             $bukti = $item->buktiPembayarans->first();
                             $nominal = (float) ($item->harga_final ?? $item->harga_estimasi);
+                            $tglTreatmentSelesai = $item->tgl_selesai
+                                ? \Carbon\Carbon::parse($item->tgl_selesai)
+                                : ($item->jadwalPenugasan?->tgl_pengerjaan ? \Carbon\Carbon::parse($item->jadwalPenugasan->tgl_pengerjaan) : null);
                         @endphp
                         <tr class="hover:bg-gray-50/70 transition">
                             <td class="px-4 py-3 align-top">
                                 <span class="font-mono font-bold text-gray-900 block">{{ $item->kode_pemesanan }}</span>
                                 <span class="text-[11px] text-gray-400 block mt-0.5 whitespace-nowrap">
-                                    {{ $item->tgl_selesai ? \Carbon\Carbon::parse($item->tgl_selesai)->format('d M Y') : '-' }}
+                                    Selesai: {{ $tglTreatmentSelesai ? $tglTreatmentSelesai->format('d M Y') : '-' }}
                                 </span>
+                                @if ($item->tgl_verifikasi)
+                                    <span class="text-[10px] text-emerald-700 font-semibold block whitespace-nowrap" title="Tanggal & Jam ACC Pesanan">
+                                        ACC: {{ \Carbon\Carbon::parse($item->tgl_verifikasi)->format('d/m/Y H:i') }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-3 align-top">
                                 <span class="font-bold text-gray-900 block leading-tight">{{ $item->pelanggan->nama }}</span>
@@ -146,7 +154,7 @@
                                 </span>
                                 <div class="text-[10px] text-gray-500 mt-1 space-y-0.5">
                                     <div><span class="text-blue-600 font-semibold">Survei:</span> {{ $item->jadwalPenugasan?->tgl_survei ? \Carbon\Carbon::parse($item->jadwalPenugasan->tgl_survei)->format('d/m/Y') : '-' }}</div>
-                                    <div><span class="text-emerald-600 font-semibold">Treatment:</span> {{ $item->jadwalPenugasan?->tgl_pengerjaan ? \Carbon\Carbon::parse($item->jadwalPenugasan->tgl_pengerjaan)->format('d/m/Y') : '-' }}</div>
+                                    <div><span class="text-emerald-600 font-semibold">Treatment:</span> {{ $tglTreatmentSelesai ? $tglTreatmentSelesai->format('d/m/Y') : '-' }}</div>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-right align-top">
@@ -156,6 +164,10 @@
                                 @if ($item->wajib_dp && $item->status_dp === 'Lunas')
                                     <div class="text-[10px] text-gray-500 font-medium space-y-0.5 mt-1 whitespace-nowrap">
                                         <div>DP 10%: <span class="font-bold text-emerald-800">Rp {{ number_format($item->nominal_dp, 0, ',', '.') }}</span></div>
+                                        @php $accDp = $item->tgl_verifikasi_dp ?? $item->tgl_bayar_dp; @endphp
+                                        @if ($accDp)
+                                            <div class="text-[9px] text-emerald-700 font-bold">ACC DP: {{ \Carbon\Carbon::parse($accDp)->format('d/m/Y H:i') }}</div>
+                                        @endif
                                         <div>Pelunasan: <span class="font-bold text-gray-700">Rp {{ number_format($item->sisa_pelunasan, 0, ',', '.') }}</span></div>
                                     </div>
                                 @endif

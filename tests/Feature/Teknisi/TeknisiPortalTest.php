@@ -256,7 +256,7 @@ test('4. validasi urutan 5 tahap teknisi di backend dan stepper show', function 
     // C. Tahap 2: Input hasil survei & jadwal pengerjaan
     $this->actingAs($this->teknisi)
         ->post(route('teknisi.pemesanan.hasil-survei', $pemesanan->id_pemesanan), [
-            'tgl_pengerjaan_diajukan' => now()->addDays(2)->toDateString(),
+            'tgl_pengerjaan_diajukan' => now()->toDateString(),
             'jam_pengerjaan_diajukan' => '13:00',
             'harga_diajukan' => 3500000,
             'catatan_survei' => 'Disepakati garansi 3 tahun',

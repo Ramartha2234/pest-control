@@ -27,6 +27,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/pesan', [PemesananController::class, 'create'])->name('pemesanan.create');
 Route::get('/pesan/cek-slot', [PemesananController::class, 'cekSlot'])->name('pemesanan.cek-slot');
+Route::get('/jadwal/slot-teknisi', [PemesananController::class, 'slotTeknisi'])->name('jadwal.slot-teknisi');
 Route::post('/pesan', [PemesananController::class, 'store'])->name('pemesanan.store');
 Route::get('/pesan/konfirmasi/{pemesanan}', [PemesananController::class, 'confirmation'])->name('pemesanan.confirmation');
 Route::post('/pesan/{pemesanan}/upload-dp', [PemesananController::class, 'uploadDp'])->name('pemesanan.upload-dp');

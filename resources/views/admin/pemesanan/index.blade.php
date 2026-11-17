@@ -48,19 +48,17 @@
 
     {{-- Order List Table --}}
     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto {{ $currentStatus === 'Done' ? 'md:overflow-x-clip' : '' }}">
             <table class="w-full text-left text-xs">
                 <thead class="bg-gray-50 text-[11px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200">
                     <tr>
-                        <th class="px-5 py-3.5 whitespace-nowrap">Kode & Tanggal</th>
-                        <th class="px-5 py-3.5 whitespace-nowrap">Pelanggan</th>
-                        <th class="px-5 py-3.5 whitespace-nowrap">Layanan & Properti</th>
-                        <th class="px-5 py-3.5 whitespace-nowrap">Jadwal Lapangan</th>
-                        <th class="px-5 py-3.5 whitespace-nowrap">Teknisi</th>
-                        <th class="px-5 py-3.5 text-right whitespace-nowrap">Nominal</th>
-                        <th class="px-5 py-3.5 text-center whitespace-nowrap">Status Kerja</th>
-                        <th class="px-5 py-3.5 text-center whitespace-nowrap">Pembayaran</th>
-                        <th class="px-5 py-3.5 text-center whitespace-nowrap">Aksi</th>
+                        <th class="px-4 py-3.5 whitespace-nowrap">{{ $currentStatus === 'Done' ? 'Kode & Selesai' : 'Kode & Tanggal' }}</th>
+                        <th class="px-4 py-3.5">Pelanggan</th>
+                        <th class="px-4 py-3.5">Layanan & Properti</th>
+                        <th class="px-4 py-3.5">Teknisi & Jadwal</th>
+                        <th class="px-4 py-3.5 text-right whitespace-nowrap">Nominal</th>
+                        <th class="px-4 py-3.5 text-center whitespace-nowrap">Status</th>
+                        <th class="px-4 py-3.5 text-center whitespace-nowrap">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 text-gray-700">
@@ -90,93 +88,104 @@
                             $teknisiNama = $booking->jadwalPenugasan?->teknisi?->nama ?? ($booking->teknisi?->nama ?? 'Belum Ditugaskan');
                         @endphp
                         <tr class="hover:bg-gray-50/70 transition">
-                            <td class="px-5 py-3.5 whitespace-nowrap">
+                            <td class="px-4 py-3.5 whitespace-nowrap align-top">
                                 <span class="font-mono font-bold text-gray-900 block">{{ $kode }}</span>
-                                <span class="text-[10px] text-gray-400 font-sans block">
-                                    {{ $booking->tgl_pemesanan ? \Carbon\Carbon::parse($booking->tgl_pemesanan)->format('d M Y H:i') : $booking->created_at->format('d M Y H:i') }}
-                                </span>
+                                @if ($currentStatus === 'Done' && $booking->tgl_selesai)
+                                    <span class="text-[10px] text-gray-500 font-sans block">
+                                        Selesai: {{ \Carbon\Carbon::parse($booking->tgl_selesai)->format('d M Y') }}
+                                    </span>
+                                @else
+                                    <span class="text-[10px] text-gray-400 font-sans block">
+                                        {{ $booking->tgl_pemesanan ? \Carbon\Carbon::parse($booking->tgl_pemesanan)->format('d M Y H:i') : $booking->created_at->format('d M Y H:i') }}
+                                    </span>
+                                @endif
+                                @if ($booking->tgl_verifikasi)
+                                    <span class="text-[10px] text-emerald-700 font-bold block mt-0.5" title="Tanggal & Jam Pesanan Di-ACC Admin">
+                                        ACC: {{ \Carbon\Carbon::parse($booking->tgl_verifikasi)->format('d/m/Y H:i') }}
+                                    </span>
+                                @else
+                                    <span class="text-[10px] text-amber-600 italic block mt-0.5">
+                                        Belum di-ACC
+                                    </span>
+                                @endif
                             </td>
-                            <td class="px-5 py-3.5">
-                                <span class="font-bold text-gray-900 block">{{ $clientNama }}</span>
-                                <span class="text-[11px] text-gray-400 block">{{ $clientHp }}</span>
+                            <td class="px-4 py-3.5 align-top">
+                                <span class="font-bold text-gray-900 block leading-tight">{{ $clientNama }}</span>
+                                <span class="text-[11px] text-gray-400 block mt-0.5 whitespace-nowrap">{{ $clientHp }}</span>
                             </td>
-                            <td class="px-5 py-3.5">
-                                <span class="font-semibold text-gray-800 block">{{ $layanan }}</span>
-                                <div class="flex items-center gap-1.5 mt-0.5">
-                                    <span class="text-[11px] text-gray-400">{{ $booking->jenis_properti }}</span>
+                            <td class="px-4 py-3.5 align-top">
+                                <span class="font-semibold text-gray-800 block leading-snug">{{ $layanan }}</span>
+                                <div class="flex items-center gap-1.5 mt-1">
+                                    <span class="text-[11px] text-gray-500">{{ $booking->jenis_properti }}</span>
                                     <span class="inline-flex items-center text-[10px] font-bold px-1.5 py-0.2 rounded {{ ($booking->tipe_area ?? 'Indoor') === 'Outdoor' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200' }}">
                                         {{ ($booking->tipe_area ?? 'Indoor') === 'Outdoor' ? 'Outdoor' : 'Indoor' }}
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-5 py-3.5 whitespace-nowrap">
-                                @if ($booking->jadwalPenugasan?->tgl_survei)
-                                    <div class="text-[11px]">
-                                        <span class="text-blue-600 font-semibold">Survei:</span>
-                                        {{ \Carbon\Carbon::parse($booking->jadwalPenugasan->tgl_survei)->format('d M Y') }}
-                                    </div>
-                                @endif
-                                @if ($booking->jadwalPenugasan?->tgl_pengerjaan)
-                                    <div class="text-[11px]">
-                                        <span class="text-emerald-600 font-semibold">Treatment:</span>
-                                        {{ \Carbon\Carbon::parse($booking->jadwalPenugasan->tgl_pengerjaan)->format('d M Y') }}
-                                    </div>
-                                @elseif (!$booking->jadwalPenugasan?->tgl_survei)
-                                    <span class="text-amber-600 font-medium">Perlu Penugasan</span>
-                                @endif
+                            <td class="px-4 py-3.5 align-top">
+                                <span class="font-bold text-gray-900 block leading-tight">{{ $teknisiNama }}</span>
+                                <div class="text-[11px] text-gray-500 mt-1 space-y-0.5 whitespace-nowrap">
+                                    @if ($booking->jadwalPenugasan?->tgl_survei)
+                                        <div>
+                                            <span class="text-blue-600 font-semibold">Survei:</span>
+                                            {{ \Carbon\Carbon::parse($booking->jadwalPenugasan->tgl_survei)->format('d M Y') }}
+                                        </div>
+                                    @endif
+                                    @if ($booking->jadwalPenugasan?->tgl_pengerjaan)
+                                        <div>
+                                            <span class="text-emerald-600 font-semibold">Treatment:</span>
+                                            {{ \Carbon\Carbon::parse($booking->jadwalPenugasan->tgl_pengerjaan)->format('d M Y') }}
+                                        </div>
+                                    @elseif (!$booking->jadwalPenugasan?->tgl_survei)
+                                        <span class="text-amber-600 font-medium text-[10px]">Perlu Penugasan</span>
+                                    @endif
+                                </div>
                             </td>
-                            <td class="px-5 py-3.5 font-medium text-gray-800">
-                                {{ $teknisiNama }}
-                            </td>
-                            <td class="px-5 py-3.5 text-right font-extrabold text-gray-900 whitespace-nowrap">
-                                <div>Rp {{ number_format($booking->harga_final ?? ($booking->harga_estimasi ?? $booking->nominal), 0, ',', '.') }}</div>
+                            <td class="px-4 py-3.5 text-right align-top whitespace-nowrap">
+                                <div class="font-extrabold text-emerald-700 text-xs sm:text-sm">
+                                    Rp {{ number_format($booking->harga_final ?? ($booking->harga_estimasi ?? $booking->nominal), 0, ',', '.') }}
+                                </div>
                                 @if ($booking->wajib_dp)
-                                    <div class="mt-0.5 space-y-0.5">
+                                    <div class="mt-1 space-y-0.5 text-[10px] text-gray-500">
+                                        <div>
+                                            DP 10%: <span class="font-bold text-emerald-800">Rp {{ number_format($booking->nominal_dp, 0, ',', '.') }}</span>
+                                        </div>
                                         @php
-                                            $dpBadgeClass = match($booking->status_dp) {
-                                                'Lunas' => 'bg-emerald-100 text-emerald-800',
-                                                'Menunggu Verifikasi' => 'bg-blue-100 text-blue-800',
-                                                'Ditolak' => 'bg-rose-100 text-rose-800',
-                                                default => 'bg-amber-100 text-amber-800',
-                                            };
-                                            $dpBadgeLabel = match($booking->status_dp) {
-                                                'Lunas' => 'Lunas',
-                                                'Menunggu Verifikasi' => 'Menunggu Verif',
-                                                'Ditolak' => 'Ditolak',
-                                                default => 'Belum',
-                                            };
+                                            $tglAccDp = $booking->tgl_verifikasi_dp ?? $booking->tgl_bayar_dp;
                                         @endphp
-                                        <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded {{ $dpBadgeClass }}">
-                                            DP 10%: {{ $dpBadgeLabel }}
-                                        </span>
+                                        @if ($tglAccDp)
+                                            <div class="text-[9.5px] text-emerald-700 font-bold" title="Tanggal & Jam DP Di-ACC Admin">
+                                                ACC DP: {{ \Carbon\Carbon::parse($tglAccDp)->format('d/m/Y H:i') }}
+                                            </div>
+                                        @endif
                                         @if ($booking->status_dp === 'Lunas')
-                                            <div class="text-[10px] text-gray-500 font-semibold">
-                                                Sisa: <span class="text-emerald-700 font-bold">Rp {{ number_format($booking->sisa_pelunasan, 0, ',', '.') }}</span>
+                                            <div>
+                                                Sisa: <span class="font-bold text-gray-700">Rp {{ number_format($booking->sisa_pelunasan, 0, ',', '.') }}</span>
                                             </div>
                                         @endif
                                     </div>
                                 @endif
                             </td>
-                            <td class="px-5 py-3.5 text-center whitespace-nowrap">
-                                <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $stColor }}">
-                                    {{ is_object($booking->status_pengerjaan) ? $booking->status_pengerjaan->label() : $booking->status_pengerjaan }}
-                                </span>
+                            <td class="px-4 py-3.5 text-center align-top whitespace-nowrap">
+                                <div class="flex flex-col items-center gap-1">
+                                    <span class="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold {{ $stColor }}">
+                                        {{ is_object($booking->status_pengerjaan) ? $booking->status_pengerjaan->label() : $booking->status_pengerjaan }}
+                                    </span>
+                                    <span class="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold {{ $pbColor }}">
+                                        {{ is_object($booking->status_pembayaran) ? $booking->status_pembayaran->label() : ($booking->status_pembayaran ?? $booking->is_lunas) }}
+                                    </span>
+                                </div>
                             </td>
-                            <td class="px-5 py-3.5 text-center whitespace-nowrap">
-                                <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $pbColor }}">
-                                    {{ is_object($booking->status_pembayaran) ? $booking->status_pembayaran->label() : ($booking->status_pembayaran ?? $booking->is_lunas) }}
-                                </span>
-                            </td>
-                            <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                            <td class="px-4 py-3.5 text-center align-top whitespace-nowrap">
                                 <a href="{{ route('admin.pemesanan.show', $orderId) }}"
-                                   class="rounded-xl bg-primary-50 px-3.5 py-1.5 font-bold text-primary-700 hover:bg-primary-100 transition inline-block">
+                                   class="rounded-xl bg-primary-50 px-3.5 py-1.5 font-bold text-primary-700 hover:bg-primary-100 transition inline-block text-xs">
                                     Detail &rarr;
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-5 py-12 text-center text-gray-400">
+                            <td colspan="7" class="px-5 py-12 text-center text-gray-400">
                                 Tidak ada data pemesanan yang sesuai dengan filter ini.
                             </td>
                         </tr>

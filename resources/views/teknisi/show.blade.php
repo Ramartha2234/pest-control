@@ -2,6 +2,15 @@
 
 @section('title', 'Penugasan: ' . $pemesanan->kode_pemesanan . ' - Teknisi')
 
+@php
+    $statusSurvei = $pemesanan->statusWaktuSurvei();
+    $statusKerja = $pemesanan->statusWaktuPengerjaan();
+    $tglSurveiRaw = $pemesanan->jadwalPenugasan?->tgl_survei ?? $pemesanan->tgl_survei_diminta;
+    $tglSurveiFormat = $tglSurveiRaw ? \Carbon\Carbon::parse($tglSurveiRaw)->locale('id')->translatedFormat('l, d F Y') : '-';
+    $tglKerjaRaw = $pemesanan->jadwalPenugasan?->tgl_pengerjaan;
+    $tglKerjaFormat = $tglKerjaRaw ? \Carbon\Carbon::parse($tglKerjaRaw)->locale('id')->translatedFormat('l, d F Y') : '-';
+@endphp
+
 @section('content')
 <div class="space-y-4">
     {{-- Tombol Navigasi Kembali --}}
@@ -100,6 +109,12 @@
                             <span>DP 10% (Lunas Kantor):</span>
                             <span class="font-bold text-emerald-700">-Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</span>
                         </div>
+                        @php $accDp = $pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp; @endphp
+                        @if ($accDp)
+                            <div class="text-[9.5px] text-emerald-700 font-semibold text-right">
+                                Di-ACC: {{ \Carbon\Carbon::parse($accDp)->format('d/m/Y H:i') }} WITA
+                            </div>
+                        @endif
                         <div class="flex items-center justify-between font-bold text-slate-800 pt-0.5">
                             <span>Sisa yang Wajib Ditagih:</span>
                             <span class="text-xs font-black text-emerald-800">Rp {{ number_format($pemesanan->sisa_pelunasan, 0, ',', '.') }}</span>
@@ -210,34 +225,82 @@
                 </div>
             @endif
 
-            {{-- Form Upload Bukti Survei (Hanya aktif jika pesanan bukan Cancel, dan belum ada atau Ditolak) --}}
+            {{-- Form / Status Upload Bukti Survei --}}
             @if ($pemesanan->status_pengerjaan !== 'Cancel' && (! $latestBuktiSurvei || $latestBuktiSurvei->status_verifikasi === 'Ditolak'))
-                <form action="{{ route('teknisi.pemesanan.kehadiran', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-2.5 pt-2 border-t border-slate-200" onsubmit="showLoading(this)">
-                    @csrf
-                    <input type="hidden" name="jenis_kehadiran" value="Survei">
-
-                    <label class="block text-xs font-bold text-slate-700">
-                        {{ $latestBuktiSurvei ? 'Unggah Ulang Foto Kehadiran Survei (Kamera HP)' : 'Ambil Foto Kehadiran di Lokasi Survei (Kamera HP)' }}
-                    </label>
-
-                    {{-- File Input Kamera Langsung + Preview --}}
-                    <div>
-                        <input type="file" name="foto" accept="image/*" capture="environment" required
-                            class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
-                            onchange="previewImage(this, 'preview-survei')">
-                        <p class="text-[10px] text-slate-400 mt-1">Format: JPG/PNG, Maksimal 15 MB. Di smartphone otomatis membuka kamera.</p>
-                        <div id="preview-survei" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
+                @if ($statusSurvei === 'too_early')
+                    {{-- Lock Banner: Terlalu Cepat (Belum Waktunya) --}}
+                    <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h5 class="text-xs sm:text-sm font-extrabold text-amber-950">
+                                Aksi Terkunci: Belum Masuk Waktu Jadwal Survei
+                            </h5>
+                            <span class="rounded-full bg-amber-200/80 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-black">
+                                Terkunci
+                            </span>
+                        </div>
+                        <p class="text-xs text-amber-900 mt-1 leading-relaxed">
+                            Jadwal survei lapangan ditetapkan pada <b>{{ $tglSurveiFormat }}</b> (pukul {{ $pemesanan->jadwalPenugasan?->jam_survei ?? '09:00' }} WITA). Form bukti kehadiran baru dapat diakses pada hari H jadwal pelaksanaan.
+                        </p>
+                        <p class="text-[11px] text-amber-800 mt-1.5 italic bg-white/70 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+                            <b>Aturan Penjadwalan:</b> Apabila survei dimajukan atas permintaan/kesepakatan pelanggan (hubungi pelanggan melalui tombol WhatsApp di atas), Admin harus memperbarui jadwal survei di web admin terlebih dahulu agar kedua tanggal pada lembar laporan resmi tercatat sama persis.
+                        </p>
+                    </div>
+                @elseif ($statusSurvei === 'overdue')
+                    {{-- Lock Banner: Jadwal Terlewat (Perlu Reschedule) --}}
+                    <div class="rounded-xl border-2 border-rose-300 bg-rose-50 p-4 space-y-2.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h5 class="text-xs sm:text-sm font-extrabold text-rose-950">
+                                Aksi Terkunci: Jadwal Survei Telah Terlewat (Perlu Reschedule)
+                            </h5>
+                            <span class="rounded-full bg-rose-200 text-rose-900 border border-rose-300 px-2 py-0.5 text-[10px] font-black">
+                                Perlu Reschedule
+                            </span>
+                        </div>
+                        <p class="text-xs text-rose-900 mt-1 leading-relaxed">
+                            Jadwal survei pada <b>{{ $tglSurveiFormat }}</b> telah terlewat. Tombol pengajuan dikunci sementara demi mencegah ketidaksesuaian data laporan resmi.
+                        </p>
+                        <div class="mt-2 text-[11px] text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200 space-y-1">
+                            <p class="font-bold text-rose-900">Petunjuk Teknisi:</p>
+                            <ol class="list-decimal list-inside space-y-0.5 leading-relaxed">
+                                <li>Hubungi pelanggan via <b>tombol WhatsApp di bagian atas</b> untuk konfirmasi jadwal survei baru.</li>
+                                <li>Hubungi Admin kantor untuk memperbarui tanggal jadwal survei di web admin.</li>
+                                <li>Setelah Admin memperbarui jadwal, tombol pengajuan akan otomatis terbuka kembali.</li>
+                            </ol>
+                        </div>
+                    </div>
+                @else
+                    {{-- Form Aktif (Hari H Sesuai Jadwal) --}}
+                    <div class="inline-flex items-center rounded-lg bg-emerald-100 text-emerald-800 px-2.5 py-1 text-[11px] font-bold">
+                        <span>Hari H Pelaksanaan Survei ({{ $tglSurveiFormat }})</span>
                     </div>
 
-                    <div>
-                        <input type="text" name="catatan" placeholder="Catatan opsional kehadiran survei..."
-                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
-                    </div>
+                    <form action="{{ route('teknisi.pemesanan.kehadiran', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-2.5 pt-2 border-t border-slate-200" onsubmit="showLoading(this)">
+                        @csrf
+                        <input type="hidden" name="jenis_kehadiran" value="Survei">
 
-                    <button type="submit" class="w-full py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
-                        <span>{{ $latestBuktiSurvei ? 'Kirim Revisi Foto Survei' : 'Kirim Foto Kehadiran Survei' }}</span>
-                    </button>
-                </form>
+                        <label class="block text-xs font-bold text-slate-700">
+                            {{ $latestBuktiSurvei ? 'Unggah Ulang Foto Kehadiran Survei (Kamera HP)' : 'Ambil Foto Kehadiran di Lokasi Survei (Kamera HP)' }}
+                        </label>
+
+                        {{-- File Input Kamera Langsung + Preview --}}
+                        <div>
+                            <input type="file" name="foto" accept="image/*" capture="environment" required
+                                class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                                onchange="previewImage(this, 'preview-survei')">
+                            <p class="text-[10px] text-slate-400 mt-1">Format: JPG/PNG, Maksimal 15 MB. Di smartphone otomatis membuka kamera.</p>
+                            <div id="preview-survei" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
+                        </div>
+
+                        <div>
+                            <input type="text" name="catatan" placeholder="Catatan opsional kehadiran survei..."
+                                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                        </div>
+
+                        <button type="submit" class="w-full py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
+                            <span>{{ $latestBuktiSurvei ? 'Kirim Revisi Foto Survei' : 'Kirim Foto Kehadiran Survei' }}</span>
+                        </button>
+                    </form>
+                @endif
             @elseif($latestBuktiSurvei?->status_verifikasi === 'Menunggu')
                 <div class="rounded-xl bg-amber-50 p-2.5 border border-amber-200 text-xs text-amber-900 font-medium">
                     Foto kehadiran survei sedang menunggu verifikasi admin. Tahap selanjutnya akan terbuka otomatis setelah disetujui.
@@ -429,9 +492,14 @@
                             {{-- Popover Dropdown Scrollable Time Picker --}}
                             <div id="jam_pengerjaan_popover" class="hidden absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-72 z-40 mt-1.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
                                 <div class="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
-                                    <span class="text-[11px] font-bold text-slate-800">
-                                        Gulir / Pilih Waktu (24 Jam)
-                                    </span>
+                                    <div>
+                                        <span class="text-[11px] font-bold text-slate-800 block">
+                                            Gulir / Pilih Waktu (24 Jam)
+                                        </span>
+                                        <span id="teknisi_slot_summary_badge" class="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                            Semua Jam Tersedia
+                                        </span>
+                                    </div>
                                     <span class="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">WITA</span>
                                 </div>
 
@@ -439,12 +507,13 @@
                                     {{-- Kolom Scroll Jam --}}
                                     <div>
                                         <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Jam</span>
-                                        <div id="teknisi_scroll_jam" class="h-40 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
+                                        <div id="teknisi_scroll_jam" class="h-44 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
                                             @for ($h = 6; $h <= 22; $h++)
                                                 @php $hVal = sprintf('%02d', $h); @endphp
                                                 <button type="button" data-hour="{{ $hVal }}"
-                                                        class="teknisi-hour-opt w-full py-1 text-xs font-bold rounded-lg transition {{ $defaultHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
-                                                    {{ $hVal }}:00
+                                                        class="teknisi-hour-opt w-full py-1.5 px-2 text-xs font-bold rounded-lg transition flex items-center justify-between {{ $defaultHour === $hVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
+                                                    <span>{{ $hVal }}:00</span>
+                                                    <span class="teknisi-hour-badge text-[9px] font-black hidden"></span>
                                                 </button>
                                             @endfor
                                         </div>
@@ -453,7 +522,7 @@
                                     {{-- Kolom Scroll Menit --}}
                                     <div>
                                         <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Menit</span>
-                                        <div id="teknisi_scroll_menit" class="h-40 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
+                                        <div id="teknisi_scroll_menit" class="h-44 overflow-y-auto space-y-1 p-1 bg-slate-50/70 rounded-xl border border-slate-100 scroll-smooth">
                                             @foreach (['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'] as $mVal)
                                                 <button type="button" data-minute="{{ $mVal }}"
                                                         class="teknisi-minute-opt w-full py-1 text-xs font-bold rounded-lg transition {{ $defaultMinute === $mVal ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-200/80' }}">
@@ -462,6 +531,12 @@
                                             @endforeach
                                         </div>
                                     </div>
+                                </div>
+
+                                {{-- Box Keterangan Jadwal Terisi --}}
+                                <div id="teknisi_booked_info_box" class="hidden my-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[10px] text-amber-950 leading-tight space-y-0.5 text-left">
+                                    <div class="font-bold text-amber-900">Jadwal Lain Teknisi Hari Ini:</div>
+                                    <div id="teknisi_booked_info_content" class="text-[10px] text-amber-800"></div>
                                 </div>
 
                                 <div class="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between">
@@ -567,36 +642,113 @@
                 </div>
             @endif
 
-            {{-- Form Upload Bukti Pengerjaan (Hanya aktif jika hasil survei Disetujui, dan belum ada atau Ditolak) --}}
+            {{-- Form / Status Upload Bukti Pengerjaan --}}
             @if ($pemesanan->status_pengerjaan !== 'Cancel' && $latestSurvei?->status_verifikasi === 'Disetujui' && (! $latestBuktiPengerjaan || $latestBuktiPengerjaan->status_verifikasi === 'Ditolak'))
-                <form action="{{ route('teknisi.pemesanan.kehadiran', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-2.5 pt-2 border-t border-slate-200" onsubmit="showLoading(this)">
-                    @csrf
-                    <input type="hidden" name="jenis_kehadiran" value="Pengerjaan">
-
-                    <label class="block text-xs font-bold text-slate-700">
-                        Foto Kehadiran Saat Mulai Bekerja (Kamera HP) *
-                    </label>
-
-                    <div>
-                        <input type="file" name="foto" accept="image/*" capture="environment" required
-                            class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
-                            onchange="previewImage(this, 'preview-pengerjaan')">
-                        <p class="text-[10px] text-slate-400 mt-1">Setelah disetujui admin, status pesanan otomatis berubah menjadi <b>On-Going</b>.</p>
-                        <div id="preview-pengerjaan" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
+                @php
+                    $statusService = app(\App\Services\PemesananStatusService::class);
+                    $bentrokTeknisiKerja = null;
+                    if ($pemesanan->jadwalPenugasan?->id_teknisi && $pemesanan->jadwalPenugasan?->tgl_pengerjaan && $pemesanan->jadwalPenugasan?->jam_pengerjaan) {
+                        $bentrokTeknisiKerja = $statusService->cekBentrokJadwalTeknisi(
+                            $pemesanan->jadwalPenugasan->id_teknisi,
+                            (string) $pemesanan->jadwalPenugasan->tgl_pengerjaan,
+                            (string) $pemesanan->jadwalPenugasan->jam_pengerjaan,
+                            $pemesanan->id_pemesanan
+                        );
+                    }
+                @endphp
+                @if ($bentrokTeknisiKerja)
+                    <div class="rounded-xl border border-rose-300 bg-rose-50 p-3.5 space-y-1 text-xs text-rose-950">
+                        <div class="flex items-center gap-1.5 font-bold text-rose-800">
+                            <span class="rounded-full bg-rose-200 text-rose-900 border border-rose-300 px-2 py-0.5 text-[10px] font-black">
+                                Jadwal Bertabrakan
+                            </span>
+                            <span>Peringatan Waktu Bersamaan!</span>
+                        </div>
+                        <p class="text-[11px] text-rose-900 leading-relaxed">
+                            Anda memiliki tugas pengerjaan lain pada waktu yang sama di pesanan <b>{{ $bentrokTeknisiKerja->pemesanan?->kode_pemesanan ?? '#'.$bentrokTeknisiKerja->id_pemesanan }}</b>. Harap hubungi Admin untuk melakukan penyesuaian jadwal.
+                        </p>
+                    </div>
+                @endif
+                @if ($statusKerja === 'too_early')
+                    {{-- Lock Banner: Belum Masuk Waktu Treatment --}}
+                    <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h5 class="text-xs sm:text-sm font-extrabold text-amber-950">
+                                Aksi Terkunci: Belum Masuk Waktu Jadwal Treatment
+                            </h5>
+                            <span class="rounded-full bg-amber-200/80 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-black">
+                                Terkunci
+                            </span>
+                        </div>
+                        <p class="text-xs text-amber-900 mt-1 leading-relaxed">
+                            Jadwal pengerjaan ditetapkan pada <b>{{ $tglKerjaFormat }}</b> (pukul {{ $pemesanan->jadwalPenugasan?->jam_pengerjaan ?? '10:00' }} WITA). Form mulai pengerjaan baru aktif pada hari H jadwal tersebut.
+                        </p>
+                        <p class="text-[11px] text-amber-800 mt-1.5 italic bg-white/70 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+                            <b>Aturan Penjadwalan:</b> Apabila treatment dimajukan atas kesepakatan pelanggan (hubungi pelanggan melalui tombol WhatsApp di atas), Admin harus memperbarui tanggal jadwal pengerjaan di web admin terlebih dahulu agar kedua tanggal di laporan resmi sinkron.
+                        </p>
+                    </div>
+                @elseif ($statusKerja === 'overdue')
+                    {{-- Lock Banner: Jadwal Pengerjaan Terlewat (Perlu Reschedule) --}}
+                    <div class="rounded-xl border-2 border-rose-300 bg-rose-50 p-4 space-y-2.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h5 class="text-xs sm:text-sm font-extrabold text-rose-950">
+                                Aksi Terkunci: Jadwal Pengerjaan Telah Terlewat (Perlu Reschedule)
+                            </h5>
+                            <span class="rounded-full bg-rose-200 text-rose-900 border border-rose-300 px-2.5 py-0.5 text-[10px] font-black">
+                                Perlu Reschedule
+                            </span>
+                        </div>
+                        <p class="text-xs text-rose-900 mt-1 leading-relaxed">
+                            Jadwal pengerjaan pada <b>{{ $tglKerjaFormat }}</b> telah terlewat dan pekerjaan belum dimulai. Form dikunci sementara agar tanggal treatment pada lembar laporan resmi tidak menyimpang.
+                        </p>
+                        <div class="mt-2 text-[11px] text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200 space-y-1">
+                            <p class="font-bold text-rose-900">Petunjuk Teknisi:</p>
+                            <ol class="list-decimal list-inside space-y-0.5 leading-relaxed">
+                                <li>Hubungi pelanggan via <b>tombol WhatsApp di bagian atas</b> untuk konfirmasi tanggal pelaksanaan baru.</li>
+                                <li>Hubungi Admin kantor untuk memperbarui jadwal pengerjaan di web admin.</li>
+                                <li>Setelah Admin memperbarui jadwal, tombol mulai pengerjaan akan otomatis aktif kembali.</li>
+                            </ol>
+                        </div>
+                    </div>
+                @else
+                    {{-- Form Aktif (Hari H Sesuai Jadwal) --}}
+                    <div class="inline-flex items-center rounded-lg bg-emerald-100 text-emerald-800 px-2.5 py-1 text-[11px] font-bold">
+                        <span>Hari H Pelaksanaan Treatment ({{ $tglKerjaFormat }})</span>
                     </div>
 
-                    <div>
-                        <input type="text" name="catatan" placeholder="Catatan mulai pengerjaan..."
-                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
-                    </div>
+                    <form action="{{ route('teknisi.pemesanan.kehadiran', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-2.5 pt-2 border-t border-slate-200" onsubmit="showLoading(this)">
+                        @csrf
+                        <input type="hidden" name="jenis_kehadiran" value="Pengerjaan">
 
-                    <button type="submit" class="w-full py-3 px-4 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
-                        <span>{{ $latestBuktiPengerjaan ? 'Kirim Revisi Foto Pengerjaan' : 'Kirim Foto Mulai Pengerjaan' }}</span>
-                    </button>
-                </form>
+                        <label class="block text-xs font-bold text-slate-700">
+                            Foto Kehadiran Saat Mulai Bekerja (Kamera HP) *
+                        </label>
+
+                        <div>
+                            <input type="file" name="foto" accept="image/*" capture="environment" required
+                                class="block w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                                onchange="previewImage(this, 'preview-pengerjaan')">
+                            <p class="text-[10px] text-slate-400 mt-1">Setelah disetujui admin, status pesanan otomatis berubah menjadi <b>On-Going</b>.</p>
+                            <div id="preview-pengerjaan" class="hidden mt-2 rounded-xl overflow-hidden max-h-48 border border-slate-200"></div>
+                        </div>
+
+                        <div>
+                            <input type="text" name="catatan" placeholder="Catatan mulai pengerjaan..."
+                                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
+                        </div>
+
+                        <button type="submit" class="w-full py-3 px-4 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2">
+                            <span>{{ $latestBuktiPengerjaan ? 'Kirim Revisi Foto Pengerjaan' : 'Kirim Foto Mulai Pengerjaan' }}</span>
+                        </button>
+                    </form>
+                @endif
             @elseif($latestBuktiPengerjaan?->status_verifikasi === 'Menunggu')
                 <div class="rounded-xl bg-amber-50 p-2.5 border border-amber-200 text-xs text-amber-900 font-medium">
                     Bukti kehadiran pengerjaan sedang menunggu persetujuan admin. Status akan otomatis menjadi <b>On-Going</b> saat disetujui.
+                </div>
+            @elseif(! $latestSurvei || $latestSurvei->status_verifikasi !== 'Disetujui')
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                    Tahap ini terkunci. Selesaikan tahap survei dan pengajuan hasil survei terlebih dahulu.
                 </div>
             @endif
         </div>
@@ -612,10 +764,61 @@
                     </span>
                     <h4 class="text-sm font-bold text-slate-800">Selesai Kerja: WO & Bukti Bayar</h4>
                 </div>
-                <span class="text-[11px] text-slate-500 font-semibold">After Treatment</span>
+                @if ($pemesanan->isPengerjaanLocked() || $tahapAktif < 4)
+                    <span class="text-[11px] text-slate-400 font-semibold">Terkunci</span>
+                @else
+                    <span class="text-[11px] text-slate-500 font-semibold">After Treatment</span>
+                @endif
             </div>
 
             <p class="text-xs text-slate-500">Unggah dokumen Work Order (WO) dan bukti pembayaran secara terpisah. Verifikasi dilakukan mandiri untuk masing-masing dokumen.</p>
+
+            {{-- Alert / Lock Banner di Tahap 4 jika belum memenuhi syarat urutan alur --}}
+            @if (! $latestBuktiSurvei || $latestBuktiSurvei->status_verifikasi !== 'Disetujui')
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                    Tahap ini terkunci. Unggah foto kehadiran survei (Tahap 1) dan tunggu verifikasi admin terlebih dahulu.
+                </div>
+            @elseif (! $latestSurvei || $latestSurvei->status_verifikasi !== 'Disetujui')
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                    Tahap ini terkunci. Selesaikan tahap survei dan pengajuan hasil survei (Tahap 2) terlebih dahulu.
+                </div>
+            @elseif ($statusKerja === 'too_early')
+                <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h5 class="text-xs sm:text-sm font-extrabold text-amber-950">
+                            Tahap Terkunci: Belum Masuk Waktu Jadwal Treatment
+                        </h5>
+                        <span class="rounded-full bg-amber-200/80 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-black">
+                            Terkunci
+                        </span>
+                    </div>
+                    <p class="text-xs text-amber-900 mt-1 leading-relaxed">
+                        Dokumen Work Order (WO) dan bukti pembayaran terkunci karena jadwal pengerjaan ditetapkan pada <b>{{ $tglKerjaFormat }}</b>. Form baru terbuka setelah tahap pengerjaan dimulai pada hari H jadwal tersebut.
+                    </p>
+                </div>
+            @elseif ($statusKerja === 'overdue')
+                <div class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 space-y-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h5 class="text-xs sm:text-sm font-extrabold text-rose-950">
+                            Tahap Terkunci: Jadwal Pengerjaan Telah Terlewat (Perlu Sinkronisasi Jadwal)
+                        </h5>
+                        <span class="rounded-full bg-rose-200 text-rose-900 border border-rose-300 px-2.5 py-0.5 text-[10px] font-black">
+                            Terkunci
+                        </span>
+                    </div>
+                    <p class="text-xs text-rose-900 mt-1 leading-relaxed">
+                        Jadwal pengerjaan tercatat adalah <b>{{ $tglKerjaFormat }}</b>, sedangkan hari ini adalah <b>{{ \Carbon\Carbon::today()->locale('id')->translatedFormat('l, d F Y') }}</b>. 
+                        Agar kedua tanggal pada lembar laporan resmi sinkron, form pengunggahan dokumen terkunci.
+                    </p>
+                    <p class="text-[11px] text-rose-800 mt-1.5 italic bg-white/80 p-2 rounded-lg border border-rose-200">
+                        Harap minta Admin kantor untuk memperbarui/menyamakan jadwal pengerjaan di web admin ke hari ini terlebih dahulu agar tombol WO & Pembayaran aktif kembali.
+                    </p>
+                </div>
+            @elseif (! $latestBuktiPengerjaan)
+                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                    Form Work Order dan Bukti Pembayaran terkunci. Silakan unggah foto kehadiran saat mulai bekerja pada Tahap 3 di atas terlebih dahulu.
+                </div>
+            @endif
 
             {{-- Sub-bagian 4A: Work Order (WO) --}}
             <div class="rounded-2xl bg-white p-3.5 border border-slate-200 space-y-2.5">
@@ -656,8 +859,8 @@
                     </div>
                 @endif
 
-                {{-- Form Upload WO (Hanya aktif jika status On-Going, dan belum ada atau Ditolak) --}}
-                @if ($pemesanan->status_pengerjaan === 'On-Going' && (! $latestWo || $latestWo->status_verifikasi === 'Ditolak'))
+                {{-- Form Upload WO (Hanya aktif jika seluruh tahap sebelumnya telah selesai/disetujui) --}}
+                @if ($pemesanan->isTahapSelesaiKerjaUnlocked() && (! $latestWo || $latestWo->status_verifikasi === 'Ditolak'))
                     <form action="{{ route('teknisi.pemesanan.wo', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-2 pt-1" onsubmit="showLoading(this)">
                         @csrf
                         <input type="file" name="file_wo" accept=".pdf,image/*" capture="environment" required
@@ -670,6 +873,8 @@
                     </form>
                 @elseif($latestWo?->status_verifikasi === 'Menunggu')
                     <p class="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl">Dokumen WO sedang menunggu verifikasi admin.</p>
+                @elseif(! $latestWo)
+                    <p class="text-[11px] text-slate-400 italic">Form dokumen WO terkunci.</p>
                 @endif
             </div>
 
@@ -738,8 +943,8 @@
                     </div>
                 @endif
 
-                {{-- Form Upload Bukti Pembayaran (Hanya aktif jika status On-Going, dan belum ada atau Ditolak) --}}
-                @if ($pemesanan->status_pengerjaan === 'On-Going' && (! $latestBuktiBayar || $latestBuktiBayar->status_verifikasi === 'Ditolak'))
+                {{-- Form Upload Bukti Pembayaran (Hanya aktif jika seluruh tahap sebelumnya telah selesai/disetujui) --}}
+                @if ($pemesanan->isTahapSelesaiKerjaUnlocked() && (! $latestBuktiBayar || $latestBuktiBayar->status_verifikasi === 'Ditolak'))
                     <form action="{{ route('teknisi.pemesanan.pembayaran', $pemesanan->id_pemesanan) }}" method="POST" enctype="multipart/form-data" class="space-y-2.5 pt-1" onsubmit="showLoading(this)">
                         @csrf
                         <div>
@@ -765,6 +970,7 @@
                         </div>
 
                         <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Catatan Pembayaran</label>
                             <input type="text" name="catatan" placeholder="Catatan pembayaran (opsional)..."
                                 class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 transition">
                         </div>
@@ -775,6 +981,8 @@
                     </form>
                 @elseif($latestBuktiBayar?->status_verifikasi === 'Menunggu')
                     <p class="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl">Bukti pembayaran sedang diverifikasi admin.</p>
+                @elseif(! $latestBuktiBayar)
+                    <p class="text-[11px] text-slate-400 italic">Form bukti pembayaran terkunci.</p>
                 @endif
             </div>
         </div>
@@ -962,9 +1170,13 @@
                             e.preventDefault();
                             e.stopPropagation();
                             selectedDate = currDate;
-                            if (hiddenTgl) hiddenTgl.value = formatDateString(selectedDate);
+                            const ymd = formatDateString(selectedDate);
+                            if (hiddenTgl) hiddenTgl.value = ymd;
                             if (displayTglBtn) displayTglBtn.textContent = formatDisplayDate(selectedDate);
                             if (calSelectedPreview) calSelectedPreview.textContent = `${selectedDate.getDate()} ${indoMonths[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+                            if (typeof syncTeknisiBusyHours === 'function') {
+                                syncTeknisiBusyHours(ymd);
+                            }
                             renderCalendar();
                             tglPopover.classList.add('hidden');
                         });
@@ -1035,11 +1247,122 @@
                 if (actM) actM.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }
 
+            const jadwalSibukMap = @json($jadwalSibukTeknisi ?? []);
+
+            window.syncTeknisiBusyHours = function (dateStr) {
+                if (!jamPopover) return;
+                const dayData = jadwalSibukMap[dateStr] || { jam: [], detail: {} };
+                const busyHours = dayData.jam || [];
+                const busyDetails = dayData.detail || {};
+
+                const hourBtns = jamPopover.querySelectorAll('.teknisi-hour-opt');
+                let bookedCount = 0;
+                const bookedList = [];
+
+                hourBtns.forEach(function (btn) {
+                    const hourVal = btn.getAttribute('data-hour');
+                    const badge = btn.querySelector('.teknisi-hour-badge');
+                    const isBusy = busyHours.includes(hourVal);
+
+                    if (isBusy) {
+                        bookedCount++;
+                        btn.disabled = true;
+                        const det = busyDetails[hourVal];
+                        const detailText = det ? (det.jam + ' (' + det.kode + ')') : (hourVal + ':00');
+                        bookedList.push(detailText);
+
+                        btn.setAttribute('title', 'Jam ' + (det ? det.jam : hourVal + ':00') + ' sudah terisi penugasan pesanan lain (' + (det ? det.kode : '') + ').');
+                        btn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'opacity-50', 'line-through');
+                        btn.classList.remove('bg-emerald-600', 'text-white', 'text-slate-700', 'hover:bg-slate-200/80');
+
+                        if (badge) {
+                            badge.textContent = 'Penuh';
+                            badge.className = 'teknisi-hour-badge text-[9px] font-black text-rose-700 bg-rose-100 border border-rose-300 rounded px-1 py-0.5';
+                            badge.classList.remove('hidden');
+                        }
+                    } else {
+                        btn.disabled = false;
+                        btn.removeAttribute('title');
+                        btn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'opacity-50', 'line-through');
+
+                        if (hourVal === currentH) {
+                            btn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                            btn.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
+                        } else {
+                            btn.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                            btn.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                        }
+
+                        if (badge) {
+                            badge.textContent = '';
+                            badge.classList.add('hidden');
+                        }
+                    }
+                });
+
+                // Update summary badge
+                const summaryBadge = document.getElementById('teknisi_slot_summary_badge');
+                if (summaryBadge) {
+                    if (bookedCount > 0) {
+                        summaryBadge.textContent = bookedCount + ' Jam Penuh';
+                        summaryBadge.className = 'text-[9px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded';
+                    } else {
+                        summaryBadge.textContent = 'Semua Jam Tersedia';
+                        summaryBadge.className = 'text-[9px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded';
+                    }
+                }
+
+                // Info box detail jam penuh
+                const infoBox = document.getElementById('teknisi_booked_info_box');
+                const infoContent = document.getElementById('teknisi_booked_info_content');
+                if (infoBox && infoContent) {
+                    if (bookedCount > 0) {
+                        infoContent.textContent = bookedList.join(', ');
+                        infoBox.classList.remove('hidden');
+                    } else {
+                        infoBox.classList.add('hidden');
+                    }
+                }
+
+                // Jika jam terpilih saat ini ternyata PENUH, otomatis geser ke jam pertama yang kosong
+                if (busyHours.includes(currentH)) {
+                    let firstAvailableBtn = null;
+                    hourBtns.forEach(function (btn) {
+                        if (!btn.disabled && !firstAvailableBtn) {
+                            firstAvailableBtn = btn;
+                        }
+                    });
+
+                    if (firstAvailableBtn) {
+                        currentH = firstAvailableBtn.getAttribute('data-hour');
+                        hourBtns.forEach(function (b) {
+                            if (!b.disabled) {
+                                b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                                b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                            }
+                        });
+                        firstAvailableBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                        firstAvailableBtn.classList.remove('text-slate-700', 'hover:bg-slate-200/80');
+                        updateTeknisiTime();
+                    }
+                }
+            };
+
+            // Inisialisasi awal sinkronisasi jam sibuk
+            const currentSelectedDate = (hiddenTgl && hiddenTgl.value) ? hiddenTgl.value : '';
+            if (currentSelectedDate) {
+                window.syncTeknisiBusyHours(currentSelectedDate);
+            }
+
             jamTrigger.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 const isHidden = jamPopover.classList.contains('hidden');
                 if (isHidden) {
+                    const activeDate = hiddenTgl ? hiddenTgl.value : '';
+                    if (activeDate && window.syncTeknisiBusyHours) {
+                        window.syncTeknisiBusyHours(activeDate);
+                    }
                     jamPopover.classList.remove('hidden');
                     if (tglPopover) tglPopover.classList.add('hidden');
                     setTimeout(scrollTeknisiActive, 50);
@@ -1052,9 +1375,12 @@
                 btn.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (this.disabled) return;
                     jamPopover.querySelectorAll('.teknisi-hour-opt').forEach(b => {
-                        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
-                        b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                        if (!b.disabled) {
+                            b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
+                            b.classList.add('text-slate-700', 'hover:bg-slate-200/80');
+                        }
                     });
                     this.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
                     this.classList.remove('text-slate-700', 'hover:bg-slate-200/80');

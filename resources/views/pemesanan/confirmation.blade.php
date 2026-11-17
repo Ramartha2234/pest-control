@@ -64,6 +64,14 @@
             </div>
 
             {{-- Estimasi & Detail Ringkas --}}
+            @if ($pemesanan->tgl_verifikasi)
+                <div class="mt-4 rounded-xl bg-emerald-50 border border-emerald-300 p-3 text-xs text-emerald-950 flex items-center justify-between gap-2 flex-wrap">
+                    <span class="font-bold text-emerald-900">Pesanan telah di-ACC admin:</span>
+                    <span class="font-extrabold text-emerald-800 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                        {{ $pemesanan->tgl_verifikasi->translatedFormat('d F Y') }} pukul {{ $pemesanan->tgl_verifikasi->format('H:i') }} WITA
+                    </span>
+                </div>
+            @endif
             <div class="mt-4 rounded-2xl bg-slate-50/90 p-4 border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                 <div class="flex flex-col items-center justify-center text-center pb-3 sm:pb-0 sm:px-3">
                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Layanan Dipilih</span>
@@ -167,7 +175,7 @@
                                 <span>Pembayaran DP 10% Berhasil Diverifikasi!</span>
                             </div>
                             <p class="text-[11px] text-emerald-800">
-                                Pembayaran DP sebesar <strong>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</strong> telah disetujui admin. Jadwal survei lokasi sedang diproses.
+                                Pembayaran DP sebesar <strong>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</strong> telah di-ACC admin pada <strong>{{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)?->translatedFormat('d F Y') }} pukul {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)?->format('H:i') }} WITA</strong>. Jadwal survei lokasi sedang diproses.
                             </p>
                             @if ($pemesanan->bukti_dp)
                                 <div class="pt-1">

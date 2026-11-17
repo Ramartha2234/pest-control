@@ -8,9 +8,11 @@ use App\Models\HasilSurvei;
 use App\Models\JadwalPenugasan;
 use App\Models\Pelanggan;
 use App\Models\Pemesanan;
+use App\Models\Pengguna;
 use App\Models\TarifArea;
 use App\Models\TarifLayanan;
 use App\Models\WorkOrder;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PemesananStatusService
@@ -149,6 +151,7 @@ class PemesananStatusService
                     'status_dp' => 'Lunas',
                     'bukti_dp' => $filePath,
                     'tgl_bayar_dp' => now(),
+                    'tgl_verifikasi_dp' => now(),
                     'alasan_penolakan_dp' => null,
                     'catatan_dp' => $catatanText,
                 ]);
@@ -169,12 +172,14 @@ class PemesananStatusService
             if ($disetujui) {
                 $updateData['status_dp'] = 'Lunas';
                 $updateData['tgl_bayar_dp'] = now();
+                $updateData['tgl_verifikasi_dp'] = now();
                 $updateData['alasan_penolakan_dp'] = null;
                 if ($catatan !== null) {
                     $updateData['catatan_dp'] = $catatan;
                 }
             } else {
                 $updateData['status_dp'] = 'Ditolak';
+                $updateData['tgl_verifikasi_dp'] = now();
                 $updateData['alasan_penolakan_dp'] = $alasanPenolakan;
                 $updateData['catatan_dp'] = $alasanPenolakan;
             }
@@ -268,73 +273,174 @@ class PemesananStatusService
     }
 
     /**
-     * Cek apakah slot jam survei pada tanggal tertentu masih tersedia (belum dibooking pelanggan lain).
-     * Aturan: 1 Slot Jam = Maksimal 1 Pelanggan.
-     * Pemesanan dengan status 'Cancel' tidak dihitung (slot otomatis terbuka kembali).
+     * Menghitung jumlah total teknisi lapangan yang aktif sebagai batas kuota per jam.
+     */
+    public function getKapasitasTeknisiAktif(): int
+    {
+        $count = Pengguna::where('role', 'teknisi')
+            ->where('status_aktif', true)
+            ->count();
+
+        return max(1, $count);
+    }
+
+    /**
+     * Cek apakah slot jam survei pada tanggal tertentu masih tersedia.
+     * Aturan Opsi A (Kapasitas Tim): Jam hanya penuh jika seluruh kuota teknisi aktif
+     * sudah terisi penugasan (Survei / Pengerjaan) atau pemesanan pending pada jam tersebut.
+     * Pemesanan dengan status 'Cancel' atau 'Done' tidak dihitung.
      */
     public function isSlotTersedia(string $tanggal, string $jam, ?int $excludePemesananId = null): bool
     {
         $parts = explode(':', trim($jam));
         $hour = str_pad($parts[0] ?? '09', 2, '0', STR_PAD_LEFT);
-        $hourPattern = $hour.':%';
 
-        // 1. Cek pemesanan aktif (status bukan Cancel)
-        $adaPemesanan = Pemesanan::whereNotIn('status_pengerjaan', ['Cancel'])
-            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
-            ->whereDate('tgl_survei_diminta', $tanggal)
-            ->where('jam_survei_diminta', 'LIKE', $hourPattern)
-            ->exists();
+        $slotTerisi = $this->getSlotTerisiPadaTanggal($tanggal, $excludePemesananId);
 
-        if ($adaPemesanan) {
-            return false;
-        }
-
-        // 2. Cek jadwal survei penugasan yang sudah disetujui/ditugaskan
-        $adaJadwal = JadwalPenugasan::whereHas('pemesanan', function ($q) {
-            $q->whereNotIn('status_pengerjaan', ['Cancel']);
-        })
-            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
-            ->whereDate('tgl_survei', $tanggal)
-            ->where('jam_survei', 'LIKE', $hourPattern)
-            ->exists();
-
-        return ! $adaJadwal;
+        return ! in_array($hour, $slotTerisi, true);
     }
 
     /**
-     * Mengambil daftar slot jam (dalam format dua digit jam 'HH', misal ['09', '14'])
-     * yang sudah terisi / penuh pada tanggal tertentu.
-     * Pemesanan berstatus 'Cancel' diabaikan sehingga slot otomatis terbuka kembali.
+     * Mengambil daftar slot jam (format dua digit 'HH', misal ['09', '14'])
+     * yang sudah penuh / mencapai kuota kapasitas teknisi aktif pada tanggal tertentu.
+     * Memperhitungkan baik jadwal Survei maupun Pengerjaan aktif, serta pemesanan pending.
      *
      * @return array<int, string>
      */
-    public function getSlotTerisiPadaTanggal(string $tanggal): array
+    public function getSlotTerisiPadaTanggal(string $tanggal, ?int $excludePemesananId = null): array
     {
-        $jamPemesanan = Pemesanan::whereNotIn('status_pengerjaan', ['Cancel'])
-            ->whereDate('tgl_survei_diminta', $tanggal)
-            ->pluck('jam_survei_diminta')
-            ->map(function ($time) {
-                $parts = explode(':', (string) $time);
+        $kapasitas = $this->getKapasitasTeknisiAktif();
+        $dateOnly = Carbon::parse($tanggal)->toDateString();
 
-                return str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+        // 1. Ambil semua penugasan teknisi aktif (Survei atau Pengerjaan) pada tanggal ini
+        $jadwals = JadwalPenugasan::with('pemesanan')
+            ->whereHas('pemesanan', function ($q) use ($excludePemesananId) {
+                $q->whereNotIn('status_pengerjaan', ['Cancel', 'Done'])
+                    ->when($excludePemesananId, fn ($sq) => $sq->where('id_pemesanan', '!=', $excludePemesananId));
             })
-            ->filter()
-            ->toArray();
-
-        $jamJadwal = JadwalPenugasan::whereHas('pemesanan', function ($q) {
-            $q->whereNotIn('status_pengerjaan', ['Cancel']);
-        })
-            ->whereDate('tgl_survei', $tanggal)
-            ->pluck('jam_survei')
-            ->map(function ($time) {
-                $parts = explode(':', (string) $time);
-
-                return str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
+            ->where(function ($q) use ($dateOnly) {
+                $q->whereDate('tgl_survei', $dateOnly)
+                    ->orWhereDate('tgl_pengerjaan', $dateOnly);
             })
-            ->filter()
-            ->toArray();
+            ->get();
 
-        return array_values(array_unique(array_filter(array_merge($jamPemesanan, $jamJadwal))));
+        // 2. Ambil pemesanan baru yang belum memiliki JadwalPenugasan (masih menunggu verifikasi admin)
+        $pemesanansPending = Pemesanan::whereDoesntHave('jadwalPenugasan')
+            ->whereNotIn('status_pengerjaan', ['Cancel', 'Done'])
+            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
+            ->whereDate('tgl_survei_diminta', $dateOnly)
+            ->get();
+
+        $hourUsage = []; // '09' => ['assigned' => [teknisiId => true], 'pending' => int]
+
+        foreach ($jadwals as $j) {
+            // Survei
+            if ($j->tgl_survei && Carbon::parse($j->tgl_survei)->toDateString() === $dateOnly && $j->jam_survei) {
+                $parts = explode(':', (string) $j->jam_survei);
+                $h = str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+                if ($h !== '') {
+                    $tekId = $j->id_teknisi ?: ('j_'.$j->id_jadwal);
+                    $hourUsage[$h]['assigned'][$tekId] = true;
+                }
+            }
+
+            // Pengerjaan
+            if ($j->tgl_pengerjaan && Carbon::parse($j->tgl_pengerjaan)->toDateString() === $dateOnly && $j->jam_pengerjaan) {
+                $parts = explode(':', (string) $j->jam_pengerjaan);
+                $h = str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+                if ($h !== '') {
+                    $tekId = $j->id_teknisi ?: ('j_'.$j->id_jadwal);
+                    $hourUsage[$h]['assigned'][$tekId] = true;
+                }
+            }
+        }
+
+        foreach ($pemesanansPending as $p) {
+            if ($p->jam_survei_diminta) {
+                $parts = explode(':', (string) $p->jam_survei_diminta);
+                $h = str_pad($parts[0] ?? '', 2, '0', STR_PAD_LEFT);
+                if ($h !== '') {
+                    $hourUsage[$h]['pending'] = ($hourUsage[$h]['pending'] ?? 0) + 1;
+                }
+            }
+        }
+
+        $slotPenuh = [];
+
+        foreach ($hourUsage as $h => $data) {
+            $assignedCount = isset($data['assigned']) ? count($data['assigned']) : 0;
+            $pendingCount = $data['pending'] ?? 0;
+            $totalTerpakai = $assignedCount + $pendingCount;
+
+            if ($totalTerpakai >= $kapasitas) {
+                $slotPenuh[] = str_pad((string) $h, 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        sort($slotPenuh);
+
+        return $slotPenuh;
+    }
+
+    /**
+     * Mengambil daftar jadwal sibuk teknisi per tanggal (YYYY-MM-DD).
+     *
+     * @return array<string, array{jam: string[], detail: array<string, array{jam: string, tipe: string, kode: string}>}>
+     */
+    public function getJadwalSibukTeknisi(int $teknisiId, ?int $excludePemesananId = null): array
+    {
+        $jadwals = JadwalPenugasan::with('pemesanan:id_pemesanan,kode_pemesanan,status_pengerjaan')
+            ->where('id_teknisi', $teknisiId)
+            ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
+            ->whereHas('pemesanan', function ($q) {
+                $q->whereNotIn('status_pengerjaan', ['Done', 'Cancel']);
+            })
+            ->get();
+
+        $map = [];
+
+        foreach ($jadwals as $j) {
+            $kode = $j->pemesanan?->kode_pemesanan ?? '#'.$j->id_pemesanan;
+
+            // 1. Cek survei
+            if ($j->tgl_survei && $j->jam_survei) {
+                $tgl = Carbon::parse($j->tgl_survei)->toDateString();
+                $jamFull = substr((string) $j->jam_survei, 0, 5);
+                $hour = str_pad(explode(':', $jamFull)[0] ?? '', 2, '0', STR_PAD_LEFT);
+
+                if ($hour !== '') {
+                    $map[$tgl]['jam'][] = $hour;
+                    $map[$tgl]['detail'][$hour] = [
+                        'jam' => $jamFull,
+                        'tipe' => 'Survei',
+                        'kode' => $kode,
+                    ];
+                }
+            }
+
+            // 2. Cek pengerjaan
+            if ($j->tgl_pengerjaan && $j->jam_pengerjaan) {
+                $tgl = Carbon::parse($j->tgl_pengerjaan)->toDateString();
+                $jamFull = substr((string) $j->jam_pengerjaan, 0, 5);
+                $hour = str_pad(explode(':', $jamFull)[0] ?? '', 2, '0', STR_PAD_LEFT);
+
+                if ($hour !== '') {
+                    $map[$tgl]['jam'][] = $hour;
+                    $map[$tgl]['detail'][$hour] = [
+                        'jam' => $jamFull,
+                        'tipe' => 'Pengerjaan',
+                        'kode' => $kode,
+                    ];
+                }
+            }
+        }
+
+        foreach ($map as $tgl => &$val) {
+            $val['jam'] = array_values(array_unique($val['jam']));
+        }
+
+        return $map;
     }
 
     /**
@@ -346,16 +452,26 @@ class PemesananStatusService
         string $jam,
         ?int $excludePemesananId = null
     ): ?JadwalPenugasan {
-        return JadwalPenugasan::with('pemesanan')
+        $jamShort = substr(trim($jam), 0, 5);
+        $jamLong = strlen($jamShort) === 5 ? $jamShort.':00' : $jamShort;
+        $dateOnly = Carbon::parse($tanggal)->toDateString();
+
+        return JadwalPenugasan::with(['pemesanan', 'teknisi'])
             ->where('id_teknisi', $teknisiId)
             ->when($excludePemesananId, fn ($q) => $q->where('id_pemesanan', '!=', $excludePemesananId))
-            ->where(function ($q) use ($tanggal, $jam) {
-                $q->where(function ($sq) use ($tanggal, $jam) {
-                    $sq->whereDate('tgl_survei', $tanggal)
-                        ->where('jam_survei', $jam);
-                })->orWhere(function ($sq) use ($tanggal, $jam) {
-                    $sq->whereDate('tgl_pengerjaan', $tanggal)
-                        ->where('jam_pengerjaan', $jam);
+            ->where(function ($q) use ($dateOnly, $jamShort, $jamLong) {
+                $q->where(function ($sq) use ($dateOnly, $jamShort, $jamLong) {
+                    $sq->whereDate('tgl_survei', $dateOnly)
+                        ->where(function ($jq) use ($jamShort, $jamLong) {
+                            $jq->where('jam_survei', $jamShort)
+                                ->orWhere('jam_survei', $jamLong);
+                        });
+                })->orWhere(function ($sq) use ($dateOnly, $jamShort, $jamLong) {
+                    $sq->whereDate('tgl_pengerjaan', $dateOnly)
+                        ->where(function ($jq) use ($jamShort, $jamLong) {
+                            $jq->where('jam_pengerjaan', $jamShort)
+                                ->orWhere('jam_pengerjaan', $jamLong);
+                        });
                 });
             })
             ->whereHas('pemesanan', function ($pq) {
@@ -512,6 +628,15 @@ class PemesananStatusService
 
             $jadwal->update($updateData);
 
+            // Jika pesanan sudah berstatus Done dan tanggal pengerjaan diubah/disinkronkan,
+            // sesuaikan juga tgl_selesai pemesanan agar pada laporan tanggalnya sama
+            if ($pemesanan->status_pengerjaan === 'Done' && $tglPengerjaan !== null) {
+                $jamSelesai = $pemesanan->tgl_selesai ? Carbon::parse($pemesanan->tgl_selesai) : now();
+                $pemesanan->update([
+                    'tgl_selesai' => Carbon::parse($tglPengerjaan)->setTime($jamSelesai->hour, $jamSelesai->minute, $jamSelesai->second),
+                ]);
+            }
+
             return $jadwal;
         });
     }
@@ -655,10 +780,16 @@ class PemesananStatusService
             $latestWo && $latestWo->status_verifikasi === 'Disetujui' &&
             $latestBukti && $latestBukti->status_verifikasi === 'Disetujui'
         ) {
+            // Selaraskan tgl_selesai dengan tgl_pengerjaan jika ada, agar pada laporan tanggalnya sama
+            $tglKerja = $pemesanan->jadwalPenugasan?->tgl_pengerjaan;
+            $tglSelesai = $tglKerja
+                ? Carbon::parse($tglKerja)->setTime(now()->hour, now()->minute, now()->second)
+                : now();
+
             $pemesanan->update([
                 'status_pengerjaan' => 'Done',
                 'status_pembayaran' => 'Lunas',
-                'tgl_selesai' => now(),
+                'tgl_selesai' => $tglSelesai,
             ]);
 
             return true;

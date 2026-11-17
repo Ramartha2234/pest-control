@@ -499,6 +499,9 @@
                         @forelse ($chunk['items'] as $item)
                             @php
                                 $nominal = (float) ($item->harga_final ?? $item->harga_estimasi);
+                                $tglTreatmentSelesai = $item->tgl_selesai
+                                    ? \Carbon\Carbon::parse($item->tgl_selesai)
+                                    : ($item->jadwalPenugasan?->tgl_pengerjaan ? \Carbon\Carbon::parse($item->jadwalPenugasan->tgl_pengerjaan) : null);
                             @endphp
                             <tr>
                                 <td style="text-align: center; color: #64748b;">
@@ -506,9 +509,14 @@
                                 </td>
                                 <td>
                                     <strong style="font-family: monospace; font-size: 10px;">{{ $item->kode_pemesanan }}</strong>
-                                    <span style="display: block; font-size: 8.5px; color: #64748b; margin-top: 1px;">
-                                        {{ $item->tgl_selesai ? \Carbon\Carbon::parse($item->tgl_selesai)->translatedFormat('d M Y') : '-' }}
+                                    <span style="display: block; font-size: 8px; color: #64748b; margin-top: 1px;">
+                                        Selesai: {{ $tglTreatmentSelesai ? $tglTreatmentSelesai->translatedFormat('d M Y') : '-' }}
                                     </span>
+                                    @if ($item->tgl_verifikasi)
+                                        <span style="display: block; font-size: 8px; color: #047857;">
+                                            ACC: {{ \Carbon\Carbon::parse($item->tgl_verifikasi)->format('d/m/Y H:i') }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td>
                                     <strong>{{ $item->pelanggan->nama }}</strong>
@@ -525,15 +533,21 @@
                                 <td>
                                     <strong>{{ $item->jadwalPenugasan?->teknisi?->nama ?? 'N/A' }}</strong>
                                     <span style="display: block; font-size: 8.5px; color: #64748b; margin-top: 1px;">
-                                        Treatment: {{ $item->jadwalPenugasan?->tgl_pengerjaan ? \Carbon\Carbon::parse($item->jadwalPenugasan->tgl_pengerjaan)->format('d/m/Y') : '-' }}
+                                        Treatment: {{ $tglTreatmentSelesai ? $tglTreatmentSelesai->format('d/m/Y') : '-' }}
                                     </span>
                                 </td>
                                 <td style="text-align: right; font-weight: bold; color: #047857;">
                                     Rp {{ number_format($nominal, 0, ',', '.') }}
                                     @if ($item->wajib_dp && $item->status_dp === 'Lunas')
+                                        @php $accDp = $item->tgl_verifikasi_dp ?? $item->tgl_bayar_dp; @endphp
                                         <span style="display: block; font-size: 8px; font-weight: normal; color: #64748b; margin-top: 1px;">
                                             DP: Rp {{ number_format($item->nominal_dp, 0, ',', '.') }}
                                         </span>
+                                        @if ($accDp)
+                                            <span style="display: block; font-size: 7.5px; font-weight: normal; color: #047857; margin-top: 1px;">
+                                                ACC: {{ \Carbon\Carbon::parse($accDp)->format('d/m/Y H:i') }}
+                                            </span>
+                                        @endif
                                     @endif
                                 </td>
                             </tr>

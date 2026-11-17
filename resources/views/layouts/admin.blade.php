@@ -111,9 +111,8 @@
         @endif
         @if (session('warning'))
             <div class="mt-4 mx-6 sm:mx-8">
-                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 font-medium flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>{{ session('warning') }}</span>
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 font-medium">
+                    {{ session('warning') }}
                 </div>
             </div>
         @endif

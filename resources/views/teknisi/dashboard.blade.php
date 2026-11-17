@@ -27,14 +27,8 @@
     {{-- Banner Notifikasi: Perlu Tindakan (Jika ada pengajuan ditolak admin) --}}
     @if ($countPerluTindakan > 0)
         <div class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 shadow-sm animate-pulse">
-            <div class="flex items-start gap-3">
-                <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                </div>
-                <div class="flex-1">
-                    <h3 class="text-sm font-black text-rose-900">Perhatian: Ada {{ $countPerluTindakan }} Pengajuan Ditolak!</h3>
+            <div>
+                <h3 class="text-sm font-black text-rose-900">Perhatian: Ada {{ $countPerluTindakan }} Pengajuan Ditolak!</h3>
                     <p class="text-xs text-rose-700 mt-0.5">Admin menolak bukti foto / hasil survei / dokumen WO / bukti bayar. Harap segera periksa dan unggah ulang.</p>
                     <div class="mt-2.5">
                         <a href="{{ route('teknisi.tugas') }}" class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-rose-700 transition">
@@ -175,7 +169,7 @@
                     <div class="rounded-2xl border {{ $isNeedAction ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white' }} p-4 shadow-sm hover:shadow-md transition">
                         <div class="flex items-start justify-between gap-2">
                             <div>
-                                <div class="flex items-center gap-1.5">
+                                <div class="flex items-center gap-1.5 flex-wrap">
                                     <span class="font-mono text-[11px] font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
                                         {{ $item->kode_pemesanan }}
                                     </span>
@@ -183,6 +177,29 @@
                                         <span class="inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
                                             Perlu Aksi
                                         </span>
+                                    @endif
+                                    @if (!in_array($item->status_pengerjaan, ['Done', 'Cancel']))
+                                        @if ($item->tahapPengerjaanTeknisi() <= 2)
+                                            @if ($item->statusWaktuSurvei() === 'overdue')
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 text-[10px] font-bold">
+                                                    Survei Terlewat
+                                                </span>
+                                            @elseif ($item->statusWaktuSurvei() === 'too_early')
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-bold">
+                                                    Mendatang (Terkunci)
+                                                </span>
+                                            @endif
+                                        @else
+                                            @if ($item->statusWaktuPengerjaan() === 'overdue')
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 text-[10px] font-bold">
+                                                    Treatment Terlewat
+                                                </span>
+                                            @elseif ($item->statusWaktuPengerjaan() === 'too_early')
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-bold">
+                                                    Mendatang (Terkunci)
+                                                </span>
+                                            @endif
+                                        @endif
                                     @endif
                                 </div>
                                 <h4 class="text-sm font-bold text-slate-900 mt-1">{{ $item->pelanggan->nama }}</h4>

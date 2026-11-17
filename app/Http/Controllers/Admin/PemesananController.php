@@ -12,6 +12,7 @@ use App\Models\Pemesanan;
 use App\Models\Pengguna;
 use App\Models\WorkOrder;
 use App\Services\PemesananStatusService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -95,6 +96,11 @@ class PemesananController extends Controller
             ->orderBy('nama')
             ->get();
 
+        $semuaJadwalSibukTeknisi = [];
+        foreach ($teknisiList as $tek) {
+            $semuaJadwalSibukTeknisi[$tek->id_pengguna] = $this->statusService->getJadwalSibukTeknisi($tek->id_pengguna, $pemesanan->id_pemesanan);
+        }
+
         return view('admin.pemesanan.show', [
             'pemesanan' => $pemesanan,
             'teknisiList' => $teknisiList,
@@ -103,6 +109,10 @@ class PemesananController extends Controller
             'latestBuktiPengerjaan' => $pemesanan->latestBuktiPengerjaan(),
             'latestWo' => $pemesanan->latestWorkOrder(),
             'latestBuktiBayar' => $pemesanan->latestBuktiPembayaran(),
+            'semuaJadwalSibukTeknisi' => $semuaJadwalSibukTeknisi,
+            'jadwalSibukTeknisi' => $pemesanan->jadwalPenugasan?->id_teknisi
+                ? ($semuaJadwalSibukTeknisi[$pemesanan->jadwalPenugasan->id_teknisi] ?? [])
+                : [],
         ]);
     }
 
@@ -215,6 +225,26 @@ class PemesananController extends Controller
         ]);
 
         $disetujui = $request->input('aksi') === 'setujui';
+
+        if ($disetujui) {
+            $bentrok = $this->statusService->cekBentrokJadwalTeknisi(
+                $hasilSurvei->id_teknisi,
+                (string) $hasilSurvei->tgl_pengerjaan_diajukan,
+                (string) $hasilSurvei->jam_pengerjaan_diajukan,
+                $hasilSurvei->id_pemesanan
+            );
+
+            if ($bentrok) {
+                $teknisi = Pengguna::find($hasilSurvei->id_teknisi);
+                $tekNama = $teknisi?->nama ?? 'Teknisi';
+                $tglFormatted = Carbon::parse($hasilSurvei->tgl_pengerjaan_diajukan)->locale('id')->translatedFormat('l, d F Y');
+                $jamFormatted = substr((string) $hasilSurvei->jam_pengerjaan_diajukan, 0, 5);
+                $kodeBentrok = $bentrok->pemesanan?->kode_pemesanan ?? '#'.$bentrok->id_pemesanan;
+
+                return redirect()->route('admin.pemesanan.show', $hasilSurvei->id_pemesanan)
+                    ->with('error', "Jadwal penuh / bertabrakan: Teknisi {$tekNama} sudah memiliki jadwal penugasan pada {$tglFormatted} pukul {$jamFormatted} WITA (Pesanan {$kodeBentrok}). Tidak dapat menyetujui jadwal yang bertabrakan. Silakan tolak kesepakatan agar teknisi mengajukan jadwal baru, atau sesuaikan jadwal terlebih dahulu.");
+            }
+        }
 
         $this->statusService->verifikasiHasilSurvei(
             $hasilSurvei,
@@ -456,7 +486,13 @@ class PemesananController extends Controller
         }
 
         if ($statusPengerjaanFormatted === 'Done' && $statusPembayaranFormatted === 'Lunas') {
-            $updateData['tgl_selesai'] = $pemesanan->tgl_selesai ?? now();
+            $tglKerja = ! empty($validated['tanggal_pengerjaan'])
+                ? $validated['tanggal_pengerjaan']
+                : ($pemesanan->jadwalPenugasan?->tgl_pengerjaan ?? null);
+
+            $updateData['tgl_selesai'] = $tglKerja
+                ? Carbon::parse($tglKerja)->setTime(now()->hour, now()->minute, now()->second)
+                : ($pemesanan->tgl_selesai ?? now());
         }
 
         $pemesanan->update($updateData);
@@ -550,6 +586,7 @@ class PemesananController extends Controller
         ]);
 
         $disetujui = $request->input('aksi') === 'setujui';
+
         $newBuktiPath = $request->hasFile('bukti_dp')
             ? $request->file('bukti_dp')->store('bukti_dp', 'public')
             : null;

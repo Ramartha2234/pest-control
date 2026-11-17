@@ -52,7 +52,16 @@ class TeknisiController extends Controller
     {
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : true;
         $nama = $request->input('nama');
-        $email = $request->input('email') ?: (Str::slug($nama).random_int(100, 9999).'@ambius.com');
+
+        if ($request->filled('email')) {
+            $email = $request->input('email');
+        } else {
+            $baseSlug = Str::slug($nama) ?: 'teknisi';
+            do {
+                $email = $baseSlug.random_int(100, 9999).'@ambius.com';
+            } while (Teknisi::withoutGlobalScopes()->where('email', $email)->exists());
+        }
+
         $password = $request->filled('password') ? bcrypt($request->input('password')) : bcrypt('password');
 
         Teknisi::create([
@@ -100,7 +109,7 @@ class TeknisiController extends Controller
         $teknisi->update($data);
 
         return redirect()->route('admin.teknisi.index')
-            ->with('success', 'Data teknisi dan akun berhasil diperbarui.');
+            ->with('success', 'Data teknisi dan akun login berhasil diperbarui.');
     }
 
     /**

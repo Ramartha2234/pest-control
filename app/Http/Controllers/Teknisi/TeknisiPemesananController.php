@@ -184,6 +184,7 @@ class TeknisiPemesananController extends Controller
             'latestBuktiPengerjaan' => $pemesanan->latestBuktiPengerjaan(),
             'latestWo' => $pemesanan->latestWorkOrder(),
             'latestBuktiBayar' => $pemesanan->latestBuktiPembayaran(),
+            'jadwalSibukTeknisi' => $this->statusService->getJadwalSibukTeknisi(Auth::id(), $pemesanan->id_pemesanan),
         ]);
     }
 
@@ -219,8 +220,55 @@ class TeknisiPemesananController extends Controller
 
         $jenis = $request->input('jenis_kehadiran');
 
-        // Validasi urutan tahap untuk kehadiran Pengerjaan
-        if ($jenis === 'Pengerjaan') {
+        // Validasi kesesuaian tanggal jadwal pelaksanaan (Hari H)
+        if ($jenis === 'Survei') {
+            $statusSurvei = $pemesanan->statusWaktuSurvei();
+            if ($statusSurvei === 'too_early') {
+                $tglJadwal = $pemesanan->jadwalPenugasan?->tgl_survei
+                    ? Carbon::parse($pemesanan->jadwalPenugasan->tgl_survei)->locale('id')->translatedFormat('l, d F Y')
+                    : ($pemesanan->tgl_survei_diminta ? Carbon::parse($pemesanan->tgl_survei_diminta)->locale('id')->translatedFormat('l, d F Y') : '-');
+
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', "Aksi terkunci: Belum masuk waktu jadwal survei ({$tglJadwal}). Anda baru dapat mengambil foto kehadiran pada hari pelaksanaan. Jika dimajukan atas kesepakatan pelanggan, hubungi Admin untuk mengubah jadwal terlebih dahulu.");
+            }
+
+            if ($statusSurvei === 'overdue') {
+                $tglJadwal = $pemesanan->jadwalPenugasan?->tgl_survei
+                    ? Carbon::parse($pemesanan->jadwalPenugasan->tgl_survei)->locale('id')->translatedFormat('l, d F Y')
+                    : ($pemesanan->tgl_survei_diminta ? Carbon::parse($pemesanan->tgl_survei_diminta)->locale('id')->translatedFormat('l, d F Y') : '-');
+
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', "Aksi terkunci: Jadwal survei ({$tglJadwal}) telah terlewat. Harap hubungi pelanggan untuk konfirmasi tanggal baru dan minta Admin memperbarui jadwal sebelum mengunggah bukti survei.");
+            }
+
+            // Cegah upload ulang jika foto survei sebelumnya masih Menunggu
+            $latestSurvei = $pemesanan->latestBuktiSurvei();
+            if ($latestSurvei && $latestSurvei->status_verifikasi === 'Menunggu') {
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', 'Bukti kehadiran survei sebelumnya masih menunggu verifikasi admin.');
+            }
+        } else {
+            // Validasi kesesuaian tanggal jadwal pengerjaan
+            $statusKerja = $pemesanan->statusWaktuPengerjaan();
+            if ($statusKerja === 'too_early') {
+                $tglJadwal = $pemesanan->jadwalPenugasan?->tgl_pengerjaan
+                    ? Carbon::parse($pemesanan->jadwalPenugasan->tgl_pengerjaan)->locale('id')->translatedFormat('l, d F Y')
+                    : '-';
+
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', "Aksi terkunci: Belum masuk waktu jadwal pengerjaan/treatment ({$tglJadwal}). Pekerjaan belum dapat dimulai sebelum tanggal jadwal. Jika dimajukan atas permintaan pelanggan, hubungi Admin untuk mengubah jadwal di sistem terlebih dahulu.");
+            }
+
+            if ($statusKerja === 'overdue') {
+                $tglJadwal = $pemesanan->jadwalPenugasan?->tgl_pengerjaan
+                    ? Carbon::parse($pemesanan->jadwalPenugasan->tgl_pengerjaan)->locale('id')->translatedFormat('l, d F Y')
+                    : '-';
+
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', "Aksi terkunci: Jadwal pengerjaan ({$tglJadwal}) telah terlewat. Harap hubungi pelanggan untuk konfirmasi reschedule dan minta Admin memperbarui jadwal pengerjaan di sistem.");
+            }
+
+            // Validasi urutan tahap untuk kehadiran Pengerjaan
             $hasilSurvei = $pemesanan->latestHasilSurvei();
             if (! $hasilSurvei || $hasilSurvei->status_verifikasi !== 'Disetujui') {
                 return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
@@ -232,13 +280,6 @@ class TeknisiPemesananController extends Controller
             if ($latestPengerjaan && $latestPengerjaan->status_verifikasi === 'Menunggu') {
                 return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
                     ->with('error', 'Bukti kehadiran pengerjaan sebelumnya masih menunggu verifikasi admin.');
-            }
-        } else {
-            // Cegah upload ulang jika foto survei sebelumnya masih Menunggu
-            $latestSurvei = $pemesanan->latestBuktiSurvei();
-            if ($latestSurvei && $latestSurvei->status_verifikasi === 'Menunggu') {
-                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
-                    ->with('error', 'Bukti kehadiran survei sebelumnya masih menunggu verifikasi admin.');
             }
         }
 
@@ -305,11 +346,32 @@ class TeknisiPemesananController extends Controller
             'harga_diajukan.min' => 'Nominal harga minimal Rp 10.000.',
         ]);
 
+        $tglPengerjaan = $request->input('tgl_pengerjaan_diajukan');
+        $jamPengerjaan = $request->input('jam_pengerjaan_diajukan');
+
+        // Validasi bentrok jadwal teknisi sendiri (slot jam tidak boleh bertabrakan)
+        $bentrok = $this->statusService->cekBentrokJadwalTeknisi(
+            Auth::id(),
+            $tglPengerjaan,
+            $jamPengerjaan,
+            $pemesanan->id_pemesanan
+        );
+
+        if ($bentrok) {
+            $tglFormatted = Carbon::parse($tglPengerjaan)->locale('id')->translatedFormat('l, d F Y');
+            $jamFormatted = substr((string) $jamPengerjaan, 0, 5);
+            $kodeBentrok = $bentrok->pemesanan?->kode_pemesanan ?? '#'.$bentrok->id_pemesanan;
+
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', "Jadwal penuh / bentrok: Anda sudah memiliki jadwal penugasan pada {$tglFormatted} pukul {$jamFormatted} WITA (Pesanan {$kodeBentrok}). Silakan sepakati tanggal atau jam pengerjaan lain yang masih kosong.")
+                ->withInput();
+        }
+
         $this->statusService->submitHasilSurvei(
             $pemesanan,
             Auth::id(),
-            $request->input('tgl_pengerjaan_diajukan'),
-            $request->input('jam_pengerjaan_diajukan'),
+            $tglPengerjaan,
+            $jamPengerjaan,
             (float) $request->input('harga_diajukan'),
             $request->input('catatan_survei')
         );
@@ -331,10 +393,42 @@ class TeknisiPemesananController extends Controller
                 ->with('error', 'Pemesanan ini telah dibatalkan. Tidak dapat mengunggah dokumen Work Order.');
         }
 
-        // Validasi urutan tahap: Status pengerjaan harus On-Going
-        if ($pemesanan->status_pengerjaan !== 'On-Going') {
+        // Validasi urutan tahap berurutan mutlak:
+        if ($pemesanan->latestBuktiSurvei()?->status_verifikasi !== 'Disetujui') {
             return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
-                ->with('error', 'Urutan tidak valid: Anda hanya dapat mengunggah Work Order setelah pengerjaan berstatus On-Going (bukti kehadiran pengerjaan telah disetujui admin).');
+                ->with('error', 'Urutan tidak valid: Foto kehadiran survei (Tahap 1) belum diunggah atau belum disetujui admin.');
+        }
+
+        if ($pemesanan->latestHasilSurvei()?->status_verifikasi !== 'Disetujui') {
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', 'Urutan tidak valid: Pengajuan hasil survei & kesepakatan harga (Tahap 2) belum disetujui admin.');
+        }
+
+        if (! $pemesanan->jadwalPenugasan?->tgl_pengerjaan) {
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', 'Urutan tidak valid: Jadwal tanggal pengerjaan belum ditetapkan.');
+        }
+
+        // Jadwal pengerjaan tidak boleh terkunci (too_early atau overdue)
+        if ($pemesanan->isPengerjaanLocked()) {
+            $statusKerja = $pemesanan->statusWaktuPengerjaan();
+            $tglJadwal = $pemesanan->jadwalPenugasan?->tgl_pengerjaan
+                ? Carbon::parse($pemesanan->jadwalPenugasan->tgl_pengerjaan)->locale('id')->translatedFormat('l, d F Y')
+                : '-';
+
+            if ($statusKerja === 'too_early') {
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', "Aksi terkunci: Belum masuk waktu jadwal treatment ({$tglJadwal}). Dokumen Work Order hanya dapat diunggah pada hari H pelaksanaan jadwal.");
+            }
+
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', "Aksi terkunci: Jadwal pengerjaan ({$tglJadwal}) telah terlewat dari tanggal hari ini. Minta Admin untuk menyamakan/memperbarui jadwal pengerjaan di sistem terlebih dahulu agar lembar laporan resmi sinkron.");
+        }
+
+        // Pengerjaan harus sudah dimulai (foto kehadiran pengerjaan telah diunggah)
+        if (! $pemesanan->latestBuktiPengerjaan()) {
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', 'Urutan tidak valid: Anda hanya dapat mengunggah Work Order setelah pengerjaan dimulai (unggah foto kehadiran pengerjaan pada Tahap 3 terlebih dahulu).');
         }
 
         // Cegah spam jika WO sebelumnya masih Menunggu
@@ -380,10 +474,42 @@ class TeknisiPemesananController extends Controller
                 ->with('error', 'Pemesanan ini telah dibatalkan. Tidak dapat mengunggah bukti pembayaran.');
         }
 
-        // Validasi urutan tahap: Status pengerjaan harus On-Going
-        if ($pemesanan->status_pengerjaan !== 'On-Going') {
+        // Validasi urutan tahap berurutan mutlak:
+        if ($pemesanan->latestBuktiSurvei()?->status_verifikasi !== 'Disetujui') {
             return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
-                ->with('error', 'Urutan tidak valid: Anda hanya dapat mengunggah bukti pembayaran setelah pengerjaan berstatus On-Going.');
+                ->with('error', 'Urutan tidak valid: Foto kehadiran survei (Tahap 1) belum diunggah atau belum disetujui admin.');
+        }
+
+        if ($pemesanan->latestHasilSurvei()?->status_verifikasi !== 'Disetujui') {
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', 'Urutan tidak valid: Pengajuan hasil survei & kesepakatan harga (Tahap 2) belum disetujui admin.');
+        }
+
+        if (! $pemesanan->jadwalPenugasan?->tgl_pengerjaan) {
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', 'Urutan tidak valid: Jadwal tanggal pengerjaan belum ditetapkan.');
+        }
+
+        // Jadwal pengerjaan tidak boleh terkunci (too_early atau overdue)
+        if ($pemesanan->isPengerjaanLocked()) {
+            $statusKerja = $pemesanan->statusWaktuPengerjaan();
+            $tglJadwal = $pemesanan->jadwalPenugasan?->tgl_pengerjaan
+                ? Carbon::parse($pemesanan->jadwalPenugasan->tgl_pengerjaan)->locale('id')->translatedFormat('l, d F Y')
+                : '-';
+
+            if ($statusKerja === 'too_early') {
+                return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                    ->with('error', "Aksi terkunci: Belum masuk waktu jadwal treatment ({$tglJadwal}). Bukti pembayaran hanya dapat diunggah pada hari H pelaksanaan jadwal.");
+            }
+
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', "Aksi terkunci: Jadwal pengerjaan ({$tglJadwal}) telah terlewat dari tanggal hari ini. Minta Admin untuk menyamakan/memperbarui jadwal pengerjaan di sistem terlebih dahulu agar lembar laporan resmi sinkron.");
+        }
+
+        // Pengerjaan harus sudah dimulai (foto kehadiran pengerjaan telah diunggah)
+        if (! $pemesanan->latestBuktiPengerjaan()) {
+            return redirect()->route('teknisi.pemesanan.show', $pemesanan->id_pemesanan)
+                ->with('error', 'Urutan tidak valid: Anda hanya dapat mengunggah bukti pembayaran setelah pengerjaan dimulai (unggah foto kehadiran pengerjaan pada Tahap 3 terlebih dahulu).');
         }
 
         // Cegah spam jika bukti bayar sebelumnya masih Menunggu

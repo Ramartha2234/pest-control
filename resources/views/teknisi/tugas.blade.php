@@ -103,6 +103,37 @@
                                         Perlu Tindakan
                                     </span>
                                 @endif
+                                @if (!in_array($item->status_pengerjaan, ['Done', 'Cancel']))
+                                    @if ($item->tahapPengerjaanTeknisi() <= 2)
+                                        @if ($item->statusWaktuSurvei() === 'overdue')
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 text-[10px] font-bold">
+                                                Survei Terlewat (Perlu Reschedule)
+                                            </span>
+                                        @elseif ($item->statusWaktuSurvei() === 'too_early')
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-bold">
+                                                Survei Terkunci (Belum Waktunya)
+                                            </span>
+                                        @elseif ($item->statusWaktuSurvei() === 'on_time')
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold">
+                                                Survei Hari Ini (Aktif)
+                                            </span>
+                                        @endif
+                                    @else
+                                        @if ($item->statusWaktuPengerjaan() === 'overdue')
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 text-[10px] font-bold">
+                                                Treatment Terlewat (Perlu Reschedule)
+                                            </span>
+                                        @elseif ($item->statusWaktuPengerjaan() === 'too_early')
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-bold">
+                                                Treatment Terkunci (Belum Waktunya)
+                                            </span>
+                                        @elseif ($item->statusWaktuPengerjaan() === 'on_time')
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold">
+                                                Treatment Hari Ini (Aktif)
+                                            </span>
+                                        @endif
+                                    @endif
+                                @endif
                             </div>
                             <h3 class="text-base font-bold text-slate-900 mt-1.5 truncate">{{ $item->pelanggan->nama }}</h3>
                             <p class="text-xs text-slate-500">{{ $item->pelanggan->no_hp }} &bull; {{ $item->jenis_properti }} &bull; <b class="{{ ($item->tipe_area ?? 'Indoor') === 'Outdoor' ? 'text-amber-700' : 'text-emerald-700' }}">{{ $item->tipe_area ?? 'Indoor' }}</b></p>
@@ -144,6 +175,22 @@
                                         <span class="text-slate-500 font-normal">({{ $item->jadwalPenugasan->jam_pengerjaan }})</span>
                                     @endif
                                 </span>
+                                @php
+                                    $hasCollision = false;
+                                    if ($item->jadwalPenugasan?->id_teknisi && $item->jadwalPenugasan?->tgl_pengerjaan && $item->jadwalPenugasan?->jam_pengerjaan) {
+                                        $hasCollision = (bool) app(\App\Services\PemesananStatusService::class)->cekBentrokJadwalTeknisi(
+                                            $item->jadwalPenugasan->id_teknisi,
+                                            (string) $item->jadwalPenugasan->tgl_pengerjaan,
+                                            (string) $item->jadwalPenugasan->jam_pengerjaan,
+                                            $item->id_pemesanan
+                                        );
+                                    }
+                                @endphp
+                                @if ($hasCollision)
+                                    <span class="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold" title="Jadwal pengerjaan ini bertabrakan dengan pesanan lain pada teknisi yang sama">
+                                        Jadwal Bersamaan
+                                    </span>
+                                @endif
                             </div>
                         </div>
 

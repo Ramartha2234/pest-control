@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\JadwalPenugasan;
 use App\Models\Pemesanan;
 use App\Models\TarifLayanan;
+use App\Models\User;
 use App\Services\PemesananStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -237,4 +239,70 @@ test('service buatPemesanan melempar exception jika slot sudah diambil pelanggan
         'jam_survei_diminta' => '09:00',
         'validasi_slot' => true,
     ]))->toThrow(InvalidArgumentException::class, 'sudah dibooking oleh pelanggan lain');
+});
+
+test('opsi a kuota teknisi: slot jam pelanggan hanya penuh jika seluruh teknisi aktif sudah sibuk', function () {
+    $tek1 = User::create([
+        'nama' => 'Teknisi Satu',
+        'email' => 'tek1@ambius.com',
+        'password' => bcrypt('password'),
+        'role' => 'teknisi',
+        'status_aktif' => true,
+    ]);
+
+    $tek2 = User::create([
+        'nama' => 'Teknisi Dua',
+        'email' => 'tek2@ambius.com',
+        'password' => bcrypt('password'),
+        'role' => 'teknisi',
+        'status_aktif' => true,
+    ]);
+
+    $targetDate = now()->addDays(4)->format('Y-m-d');
+    $service = app(PemesananStatusService::class);
+
+    expect($service->getKapasitasTeknisiAktif())->toBe(2);
+
+    // 1. Teknisi 1 ada jadwal pengerjaan jam 09:00 pada targetDate
+    $p1 = Pemesanan::create([
+        'id_tarif' => $this->tarif->id_tarif,
+        'jenis_properti' => 'Rumah Tinggal',
+        'alamat_lokasi' => 'Jl. Slot A1',
+        'keluhan' => 'Rayap',
+        'harga_estimasi' => 1500000,
+        'status_pengerjaan' => 'On-Going',
+    ]);
+
+    JadwalPenugasan::create([
+        'id_pemesanan' => $p1->id_pemesanan,
+        'id_teknisi' => $tek1->id_pengguna,
+        'tgl_survei' => now()->toDateString(),
+        'jam_survei' => '13:00:00',
+        'tgl_pengerjaan' => $targetDate,
+        'jam_pengerjaan' => '09:00:00',
+    ]);
+
+    // Karena ada 2 teknisi dan baru 1 yang sibuk, jam 09:00 MASIH TERSEDIA untuk pelanggan!
+    $slotTerisi = $service->getSlotTerisiPadaTanggal($targetDate);
+    expect($slotTerisi)->not->toContain('09');
+    expect($service->isSlotTersedia($targetDate, '09:00'))->toBeTrue();
+
+    // 2. Ada pelanggan baru yang booking jam 09:00 (sekarang 2/2 teknisi terpakai)
+    $service->buatPemesanan([
+        'nama' => 'Pelanggan Kuota Penuh',
+        'no_hp' => '081234567888',
+        'email' => 'penuh@example.com',
+        'alamat_lokasi' => 'Jl. Slot A2',
+        'id_tarif' => $this->tarif->id_tarif,
+        'jenis_properti' => 'Rumah Tinggal',
+        'keluhan' => 'Tikus',
+        'tgl_survei_diminta' => $targetDate,
+        'jam_survei_diminta' => '09:00',
+        'validasi_slot' => true,
+    ]);
+
+    // Sekarang kuota teknisi habis (2/2), jam 09:00 otomatis PENUH!
+    $slotTerisiSetelah = $service->getSlotTerisiPadaTanggal($targetDate);
+    expect($slotTerisiSetelah)->toContain('09');
+    expect($service->isSlotTersedia($targetDate, '09:00'))->toBeFalse();
 });

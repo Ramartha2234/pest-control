@@ -24,11 +24,14 @@ class PemesananController extends Controller
     public function cekSlot(Request $request): JsonResponse
     {
         $tanggal = (string) $request->query('tanggal', '');
+        $kapasitas = $this->statusService->getKapasitasTeknisiAktif();
+
         if (empty($tanggal) || ! strtotime($tanggal)) {
             return response()->json([
                 'success' => true,
                 'tanggal' => $tanggal,
                 'slot_terisi' => [],
+                'kapasitas_teknisi' => $kapasitas,
             ]);
         }
 
@@ -38,6 +41,31 @@ class PemesananController extends Controller
             'success' => true,
             'tanggal' => $tanggal,
             'slot_terisi' => $slotTerisi,
+            'kapasitas_teknisi' => $kapasitas,
+        ]);
+    }
+
+    /**
+     * Cek jadwal sibuk teknisi per tanggal (API JSON).
+     */
+    public function slotTeknisi(Request $request): JsonResponse
+    {
+        $teknisiId = (int) $request->query('id_teknisi');
+        $excludePemesananId = $request->query('id_pemesanan') ? (int) $request->query('id_pemesanan') : null;
+
+        if (! $teknisiId) {
+            return response()->json([
+                'success' => true,
+                'jadwal' => [],
+            ]);
+        }
+
+        $jadwal = $this->statusService->getJadwalSibukTeknisi($teknisiId, $excludePemesananId);
+
+        return response()->json([
+            'success' => true,
+            'id_teknisi' => $teknisiId,
+            'jadwal' => $jadwal,
         ]);
     }
 

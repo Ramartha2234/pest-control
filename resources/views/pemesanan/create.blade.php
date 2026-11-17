@@ -86,18 +86,100 @@
                     <p class="text-xs text-slate-400 mt-1">Detail lokasi dan jenis gangguan hama yang dialami.</p>
                 </div>
 
-                <div>
-                    <label for="jenis_properti" class="block text-xs font-bold text-slate-700 mb-1">
+                {{-- Pilihan Jenis Properti Bangunan Custom Dropdown Popover --}}
+                @php
+                    $propertiOptions = [
+                        'Rumah Tinggal' => [
+                            'title' => 'Rumah Tinggal / Residensial',
+                            'badge' => 'Residensial',
+                            'desc'  => 'Rumah hunian keluarga, perumahan, townhouse, klaster, atau unit apartemen',
+                        ],
+                        'Ruko/Restoran' => [
+                            'title' => 'Ruko / Restoran / Kafe / F&B',
+                            'badge' => 'Komersial & Kuliner',
+                            'desc'  => 'Rumah toko, gerai makanan/minuman, kafe, bistro, restoran, atau retail usaha',
+                        ],
+                        'Kantor/Gedung' => [
+                            'title' => 'Kantor / Gedung Komersial',
+                            'badge' => 'Perkantoran',
+                            'desc'  => 'Gedung perkantoran, instansi, perbankan, ruang kerja, atau co-working space',
+                        ],
+                        'Gudang/Pabrik' => [
+                            'title' => 'Gudang / Pabrik / Industri',
+                            'badge' => 'Industri & Logistik',
+                            'desc'  => 'Pusat pergudangan, fasilitas logistik kargo, bengkel besar, atau pabrik industri',
+                        ],
+                        'Lainnya' => [
+                            'title' => 'Lainnya',
+                            'badge' => 'Fasilitas Umum',
+                            'desc'  => 'Tempat ibadah, sekolah, fasilitas umum, sarana olahraga, atau area publik lainnya',
+                        ],
+                    ];
+                    $selectedPropertiVal = old('jenis_properti', 'Rumah Tinggal');
+                    $currentProperti = $propertiOptions[$selectedPropertiVal] ?? $propertiOptions['Rumah Tinggal'];
+                @endphp
+                <div class="relative" id="properti_picker_container">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
                         Jenis Properti Bangunan <span class="text-rose-500">*</span>
                     </label>
-                    <select name="jenis_properti" id="jenis_properti" required
-                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 @error('jenis_properti') border-rose-400 ring-1 ring-rose-400 @enderror">
-                        <option value="Rumah Tinggal" {{ old('jenis_properti') === 'Rumah Tinggal' ? 'selected' : '' }}>Rumah Tinggal / Residensial</option>
-                        <option value="Ruko/Restoran" {{ old('jenis_properti') === 'Ruko/Restoran' ? 'selected' : '' }}>Ruko / Restoran / Kafe / F&B</option>
-                        <option value="Kantor/Gedung" {{ old('jenis_properti') === 'Kantor/Gedung' ? 'selected' : '' }}>Kantor / Gedung Komersial</option>
-                        <option value="Gudang/Pabrik" {{ old('jenis_properti') === 'Gudang/Pabrik' ? 'selected' : '' }}>Gudang / Pabrik / Industri</option>
-                        <option value="Lainnya" {{ old('jenis_properti') === 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
+
+                    {{-- Trigger Button Properti --}}
+                    <button type="button" id="properti_picker_trigger"
+                            class="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-xs text-slate-900 shadow-sm hover:border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-left">
+                        <div class="flex flex-col pr-2 min-w-0">
+                            <span id="display_properti_title" class="font-bold text-slate-900 text-xs sm:text-sm truncate">
+                                {{ $currentProperti['title'] }}
+                            </span>
+                            <span id="display_properti_sub" class="text-[11px] text-slate-500 mt-0.5 truncate">
+                                {{ $currentProperti['desc'] }}
+                            </span>
+                        </div>
+                        <span class="flex-shrink-0 flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition ml-2">
+                            <span>Pilih Properti</span>
+                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>
+                    </button>
+
+                    {{-- Hidden Select asli untuk backend & request validation --}}
+                    <select name="jenis_properti" id="jenis_properti" required class="hidden">
+                        @foreach ($propertiOptions as $val => $opt)
+                            <option value="{{ $val }}" {{ $selectedPropertiVal === $val ? 'selected' : '' }}>
+                                {{ $opt['title'] }}
+                            </option>
+                        @endforeach
                     </select>
+
+                    {{-- Popover Dropdown Kustom --}}
+                    <div id="properti_picker_popover" class="hidden absolute left-0 right-0 z-40 mt-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xl max-h-80 overflow-y-auto space-y-1.5 scroll-smooth">
+                        <div class="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-bold text-slate-800">Pilihan Jenis Properti</span>
+                            <span class="text-[10px] text-slate-400">Pilih salah satu</span>
+                        </div>
+                        @foreach ($propertiOptions as $val => $opt)
+                            @php $isPropSelected = ($selectedPropertiVal === $val); @endphp
+                            <div data-val="{{ $val }}"
+                                 data-title="{{ $opt['title'] }}"
+                                 data-sub="{{ $opt['desc'] }}"
+                                 class="properti-option-item cursor-pointer p-3 rounded-xl border transition flex items-start justify-between gap-3 {{ $isPropSelected ? 'border-emerald-500 bg-emerald-50/70 ring-1 ring-emerald-500' : 'border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/40 bg-white' }}">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-xs font-bold text-slate-900 leading-snug">{{ $opt['title'] }}</span>
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                            {{ $opt['badge'] }}
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{{ $opt['desc'] }}</p>
+                                </div>
+                                <div class="text-right flex-shrink-0 pt-0.5">
+                                    <span class="properti-check-badge text-[10px] font-bold {{ $isPropSelected ? 'text-emerald-700 bg-emerald-100/70' : 'text-slate-400 bg-slate-50' }} px-2 py-0.5 rounded-md">
+                                        {{ $isPropSelected ? 'Dipilih' : 'Pilih' }}
+                                    </span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                     @error('jenis_properti')
                         <p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>
                     @enderror
@@ -570,6 +652,74 @@
         // Run initial
         updateEstimation();
 
+        // Logic Popover Custom Properti Picker
+        const propertiPickerContainer = document.getElementById('properti_picker_container');
+        const propertiPickerTrigger = document.getElementById('properti_picker_trigger');
+        const propertiPickerPopover = document.getElementById('properti_picker_popover');
+        const selectProperti = document.getElementById('jenis_properti');
+        const displayPropertiTitle = document.getElementById('display_properti_title');
+        const displayPropertiSub = document.getElementById('display_properti_sub');
+
+        if (propertiPickerTrigger && propertiPickerPopover) {
+            propertiPickerTrigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = propertiPickerPopover.classList.contains('hidden');
+                if (isHidden) {
+                    propertiPickerPopover.classList.remove('hidden');
+                    if (typeof tarifPickerPopover !== 'undefined' && tarifPickerPopover) tarifPickerPopover.classList.add('hidden');
+                    if (typeof datePickerPopover !== 'undefined' && datePickerPopover) datePickerPopover.classList.add('hidden');
+                    if (typeof timePickerPopover !== 'undefined' && timePickerPopover) timePickerPopover.classList.add('hidden');
+                } else {
+                    propertiPickerPopover.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (propertiPickerContainer && !propertiPickerContainer.contains(e.target)) {
+                    propertiPickerPopover.classList.add('hidden');
+                }
+            });
+
+            propertiPickerPopover.querySelectorAll('.properti-option-item').forEach(function (item) {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const val = this.getAttribute('data-val');
+                    const title = this.getAttribute('data-title');
+                    const sub = this.getAttribute('data-sub');
+
+                    propertiPickerPopover.querySelectorAll('.properti-option-item').forEach(function (el) {
+                        el.classList.remove('border-emerald-500', 'bg-emerald-50/70', 'ring-1', 'ring-emerald-500');
+                        el.classList.add('border-slate-100', 'bg-white');
+                        const badge = el.querySelector('.properti-check-badge');
+                        if (badge) {
+                            badge.textContent = 'Pilih';
+                            badge.className = 'properti-check-badge text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md';
+                        }
+                    });
+
+                    this.classList.add('border-emerald-500', 'bg-emerald-50/70', 'ring-1', 'ring-emerald-500');
+                    this.classList.remove('border-slate-100', 'bg-white');
+                    const activeBadge = this.querySelector('.properti-check-badge');
+                    if (activeBadge) {
+                        activeBadge.textContent = 'Dipilih';
+                        activeBadge.className = 'properti-check-badge text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md';
+                    }
+
+                    if (displayPropertiTitle) displayPropertiTitle.textContent = title;
+                    if (displayPropertiSub) displayPropertiSub.textContent = sub;
+
+                    if (selectProperti) {
+                        selectProperti.value = val;
+                        selectProperti.dispatchEvent(new Event('change'));
+                    }
+
+                    propertiPickerPopover.classList.add('hidden');
+                });
+            });
+        }
+
         // Logic Popover Custom Tarif Picker
         const tarifPickerContainer = document.getElementById('tarif_picker_container');
         const tarifPickerTrigger = document.getElementById('tarif_picker_trigger');
@@ -584,6 +734,7 @@
                 const isHidden = tarifPickerPopover.classList.contains('hidden');
                 if (isHidden) {
                     tarifPickerPopover.classList.remove('hidden');
+                    if (typeof propertiPickerPopover !== 'undefined' && propertiPickerPopover) propertiPickerPopover.classList.add('hidden');
                     if (typeof datePickerPopover !== 'undefined' && datePickerPopover) datePickerPopover.classList.add('hidden');
                     if (typeof timePickerPopover !== 'undefined' && timePickerPopover) timePickerPopover.classList.add('hidden');
                 } else {
@@ -732,6 +883,7 @@
                 const isHidden = datePickerPopover.classList.contains('hidden');
                 if (isHidden) {
                     datePickerPopover.classList.remove('hidden');
+                    if (typeof propertiPickerPopover !== 'undefined' && propertiPickerPopover) propertiPickerPopover.classList.add('hidden');
                     if (tarifPickerPopover) tarifPickerPopover.classList.add('hidden');
                     if (typeof timePickerPopover !== 'undefined' && timePickerPopover) timePickerPopover.classList.add('hidden');
                     renderCalendar();
@@ -824,7 +976,7 @@
                         if (isBooked) {
                             bookedCount++;
                             btn.disabled = true;
-                            btn.setAttribute('title', 'Slot jam ini sudah dibooking pelanggan lain (1 Slot Jam = Maksimal 1 Pelanggan).');
+                            btn.setAttribute('title', 'Slot jam ini sudah penuh (seluruh kuota teknisi kami pada jam ini telah terisi jadwal).');
                             btn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'opacity-60', 'line-through');
                             btn.classList.remove('bg-emerald-600', 'text-white', 'text-slate-700', 'hover:bg-slate-200/80');
                             if (badge) {
@@ -900,6 +1052,7 @@
                 const isHidden = timePickerPopover.classList.contains('hidden');
                 if (isHidden) {
                     timePickerPopover.classList.remove('hidden');
+                    if (typeof propertiPickerPopover !== 'undefined' && propertiPickerPopover) propertiPickerPopover.classList.add('hidden');
                     if (tarifPickerPopover) tarifPickerPopover.classList.add('hidden');
                     if (datePickerPopover) datePickerPopover.classList.add('hidden');
                     if (hiddenTgl && hiddenTgl.value) {

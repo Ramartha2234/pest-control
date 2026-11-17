@@ -20,7 +20,7 @@
             @method('PUT')
 
             <div>
-                <label for="nama" class="block text-sm font-semibold text-gray-700">Nama Lengkap Teknisi</label>
+                <label for="nama" class="block text-sm font-semibold text-gray-700">Nama Lengkap Teknisi <span class="text-red-500">*</span></label>
                 <input type="text" name="nama" id="nama" value="{{ old('nama', $teknisi->nama) }}" required
                        class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none"
                        placeholder="Contoh: Dedi Setiadi">
@@ -30,13 +30,43 @@
             </div>
 
             <div>
-                <label for="no_telp" class="block text-sm font-semibold text-gray-700">Nomor Telepon / WhatsApp</label>
+                <label for="no_telp" class="block text-sm font-semibold text-gray-700">Nomor Telepon / WhatsApp <span class="text-red-500">*</span></label>
                 <input type="tel" name="no_telp" id="no_telp" value="{{ old('no_telp', $teknisi->no_telp) }}" required
                        class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none"
                        placeholder="Contoh: 081234567890">
                 @error('no_telp')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
+            </div>
+
+            <div class="border-t border-gray-100 pt-5 space-y-5">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500">Kredensial Login Portal Teknisi</h4>
+
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-700">Alamat Email (Login) <span class="text-red-500">*</span></label>
+                    <input type="email" name="email" id="email" value="{{ old('email', $teknisi->email) }}" required
+                           class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none"
+                           placeholder="Contoh: dedi@ambius.com">
+                    <p class="mt-1.5 text-xs text-gray-500">
+                        Alamat email aktif yang digunakan oleh teknisi untuk masuk/login ke portal teknisi.
+                    </p>
+                    @error('email')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-semibold text-gray-700">Reset Password (Opsional)</label>
+                    <input type="password" name="password" id="password"
+                           class="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 focus:outline-none"
+                           placeholder="Kosongkan jika tidak ingin mengubah password">
+                    <p class="mt-1.5 text-xs text-gray-500">
+                        Hanya isi bidang ini jika Anda ingin mereset password akun teknisi ini (minimal 6 karakter).
+                    </p>
+                    @error('password')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
             <div>

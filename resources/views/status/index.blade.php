@@ -151,6 +151,24 @@
                     </div>
                 @endif
 
+                {{-- Alert Khusus: Pesanan Telah Di-ACC oleh Admin --}}
+                @if ($pemesanan->tgl_verifikasi && $stVal !== 'Cancel')
+                    <div class="rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 text-xs text-emerald-950 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white font-black text-xs">✓</span>
+                                <h4 class="font-extrabold text-sm sm:text-base text-emerald-950">Pesanan Telah Di-ACC oleh Admin</h4>
+                            </div>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-white text-emerald-800 text-xs font-bold border border-emerald-300 shadow-2xs">
+                                ACC: {{ $pemesanan->tgl_verifikasi->translatedFormat('d F Y') }}, {{ $pemesanan->tgl_verifikasi->format('H:i') }} WITA
+                            </span>
+                        </div>
+                        <p class="text-emerald-800 leading-relaxed">
+                            Pesanan Anda telah disetujui pada <b>{{ $pemesanan->tgl_verifikasi->translatedFormat('d F Y') }} pukul {{ $pemesanan->tgl_verifikasi->format('H:i') }} WITA</b>. Teknisi kami telah dijadwalkan untuk melakukan survei dan penanganan ke lokasi Anda.
+                        </p>
+                    </div>
+                @endif
+
                 {{-- Alert Khusus Down Payment (DP 10%) untuk Pesanan >= 10 Juta --}}
                 @if ($pemesanan->wajib_dp && $stVal !== 'Cancel')
                     @if ($pemesanan->status_dp === 'Lunas')
@@ -162,7 +180,7 @@
                                 <span class="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-white text-emerald-800 text-xs font-bold border border-emerald-200 shadow-2xs tracking-wide">DP Lunas</span>
                             </div>
                             <p class="text-emerald-800 leading-relaxed text-center max-w-xl mx-auto">
-                                Pembayaran DP sebesar <b>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</b> telah diverifikasi dan dicocokkan dengan mutasi bank oleh admin pada <b>{{ $pemesanan->tgl_bayar_dp?->translatedFormat('d F Y H:i') ?? '-' }} WITA</b>.
+                                Pembayaran DP sebesar <b>Rp {{ number_format($pemesanan->nominal_dp, 0, ',', '.') }}</b> telah di-ACC dan dicocokkan dengan mutasi bank oleh admin pada <b>{{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)?->translatedFormat('d F Y') }} pukul {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)?->format('H:i') }} WITA</b>.
                             </p>
                             @if ($pemesanan->bukti_dp)
                                 <div class="pt-1 flex justify-center">
@@ -494,6 +512,21 @@
                                     @endif
                                 </span>
                             </div>
+                            <div class="flex items-center justify-between py-2.5">
+                                <span class="text-slate-500 font-medium">Waktu ACC Pesanan</span>
+                                <span class="text-right">
+                                    @if ($pemesanan->tgl_verifikasi)
+                                        <span class="font-bold text-emerald-800 block text-xs">
+                                            {{ $pemesanan->tgl_verifikasi->translatedFormat('d F Y') }}
+                                        </span>
+                                        <span class="text-[10px] text-emerald-700 font-semibold block">
+                                            pukul {{ $pemesanan->tgl_verifikasi->format('H:i') }} WITA
+                                        </span>
+                                    @else
+                                        <span class="italic text-slate-400 font-normal text-xs">Belum di-ACC</span>
+                                    @endif
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -557,9 +590,16 @@
                                 </div>
                                 <div class="flex items-center justify-between py-1">
                                     <span class="text-slate-500 font-medium">Status Verifikasi DP</span>
-                                    <span class="rounded-full border px-2.5 py-0.5 text-[10px] font-bold {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200' }}">
-                                        {{ $pemesanan->status_dp === 'Lunas' ? 'Lunas & Terverifikasi' : 'Menunggu Pembayaran' }}
-                                    </span>
+                                    <div class="text-right">
+                                        <span class="rounded-full border px-2.5 py-0.5 text-[10px] font-bold {{ $pemesanan->status_dp === 'Lunas' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200' }}">
+                                            {{ $pemesanan->status_dp === 'Lunas' ? 'Lunas & Terverifikasi' : 'Menunggu Pembayaran' }}
+                                        </span>
+                                        @if ($pemesanan->status_dp === 'Lunas' && ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp))
+                                            <span class="block text-[10px] text-emerald-700 font-bold mt-1">
+                                                Di-ACC: {{ ($pemesanan->tgl_verifikasi_dp ?? $pemesanan->tgl_bayar_dp)->translatedFormat('d/m/Y H:i') }} WITA
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
 

@@ -37,6 +37,7 @@ class Pemesanan extends Model
         'status_dp',
         'bukti_dp',
         'tgl_bayar_dp',
+        'tgl_verifikasi_dp',
         'catatan_dp',
         'alasan_penolakan_dp',
         'status_pengerjaan',
@@ -58,6 +59,7 @@ class Pemesanan extends Model
             'wajib_dp' => 'boolean',
             'nominal_dp' => 'decimal:2',
             'tgl_bayar_dp' => 'datetime',
+            'tgl_verifikasi_dp' => 'datetime',
             'ukuran_area' => 'decimal:2',
             'batas_konfirmasi' => 'datetime',
             'tgl_pemesanan' => 'datetime',
@@ -412,7 +414,13 @@ class Pemesanan extends Model
             return 2;
         }
 
-        $buktiKerjaDisetujui = $this->latestBuktiPengerjaan()?->status_verifikasi === 'Disetujui' || $this->status_pengerjaan === 'On-Going';
+        // Tahap 3: Mulai Pengerjaan (Treatment)
+        // Jadwal pengerjaan harus sudah ada dan tidak boleh terkunci
+        if (! $this->jadwalPenugasan?->tgl_pengerjaan || $this->isPengerjaanLocked()) {
+            return 3;
+        }
+
+        $buktiKerjaDisetujui = $this->latestBuktiPengerjaan()?->status_verifikasi === 'Disetujui';
         if (! $buktiKerjaDisetujui) {
             return 3;
         }
@@ -425,6 +433,128 @@ class Pemesanan extends Model
         }
 
         return 4;
+    }
+
+    /**
+     * Cek apakah Tahap 4 (Selesai Kerja: Dokumen WO & Bukti Bayar) terbuka untuk diunggah oleh teknisi.
+     * Syarat berurutan mutlak:
+     * 1. Status pesanan bukan Cancel atau Done.
+     * 2. Tahap 1: Foto Kehadiran Survei telah disetujui admin.
+     * 3. Tahap 2: Hasil Survei & Kesepakatan Harga telah disetujui admin.
+     * 4. Tahap 3: Jadwal pengerjaan telah ditetapkan dan tidak terkunci (hari H pelaksanaan).
+     * 5. Tahap 3: Pengerjaan telah dimulai (bukti kehadiran pengerjaan telah diunggah).
+     */
+    public function isTahapSelesaiKerjaUnlocked(): bool
+    {
+        if ($this->status_pengerjaan === 'Cancel' || $this->status_pengerjaan === 'Done') {
+            return false;
+        }
+
+        // Tahap 1 wajib disetujui
+        if ($this->latestBuktiSurvei()?->status_verifikasi !== 'Disetujui') {
+            return false;
+        }
+
+        // Tahap 2 wajib disetujui
+        if ($this->latestHasilSurvei()?->status_verifikasi !== 'Disetujui') {
+            return false;
+        }
+
+        // Jadwal pengerjaan wajib ada dan tidak terkunci (hari H)
+        if (! $this->jadwalPenugasan?->tgl_pengerjaan || $this->isPengerjaanLocked()) {
+            return false;
+        }
+
+        // Tahap 3: Bukti kehadiran pengerjaan wajib sudah diunggah
+        if (! $this->latestBuktiPengerjaan()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Status kesesuaian waktu jadwal survei dengan hari ini.
+     *
+     * @return 'on_time'|'too_early'|'overdue'|'no_schedule'
+     */
+    public function statusWaktuSurvei(): string
+    {
+        $tglSurvei = $this->jadwalPenugasan?->tgl_survei
+            ? Carbon::parse($this->jadwalPenugasan->tgl_survei)->toDateString()
+            : ($this->tgl_survei_diminta ? Carbon::parse($this->tgl_survei_diminta)->toDateString() : null);
+
+        if (! $tglSurvei) {
+            return 'no_schedule';
+        }
+
+        $today = Carbon::today()->toDateString();
+
+        if ($today < $tglSurvei) {
+            return 'too_early';
+        }
+
+        if ($today > $tglSurvei) {
+            return 'overdue';
+        }
+
+        return 'on_time';
+    }
+
+    /**
+     * Status kesesuaian waktu jadwal pengerjaan / treatment dengan hari ini.
+     *
+     * @return 'on_time'|'too_early'|'overdue'|'no_schedule'
+     */
+    public function statusWaktuPengerjaan(): string
+    {
+        $tglKerja = $this->jadwalPenugasan?->tgl_pengerjaan
+            ? Carbon::parse($this->jadwalPenugasan->tgl_pengerjaan)->toDateString()
+            : null;
+
+        if (! $tglKerja) {
+            return 'no_schedule';
+        }
+
+        $today = Carbon::today()->toDateString();
+
+        if ($today < $tglKerja) {
+            return 'too_early';
+        }
+
+        if ($today > $tglKerja) {
+            return 'overdue';
+        }
+
+        return 'on_time';
+    }
+
+    /**
+     * Cek apakah aksi survei teknisi terkunci karena belum masuk waktu atau terlewat.
+     */
+    public function isSurveiLocked(): bool
+    {
+        if ($this->latestBuktiSurvei()?->status_verifikasi === 'Disetujui') {
+            return false;
+        }
+
+        $status = $this->statusWaktuSurvei();
+
+        return $status === 'too_early' || $status === 'overdue';
+    }
+
+    /**
+     * Cek apakah aksi pengerjaan / treatment teknisi terkunci karena belum masuk waktu atau terlewat.
+     */
+    public function isPengerjaanLocked(): bool
+    {
+        if ($this->status_pengerjaan === 'Done') {
+            return false;
+        }
+
+        $status = $this->statusWaktuPengerjaan();
+
+        return $status === 'too_early' || $status === 'overdue';
     }
 
     /* Legacy compatibility mutators */
@@ -547,6 +677,16 @@ class Pemesanan extends Model
     public function getTeknisiIdAttribute(): ?int
     {
         return $this->jadwalPenugasan?->id_teknisi ?? $this->legacy_teknisi_id;
+    }
+
+    public function getTglAccPesananAttribute(): ?Carbon
+    {
+        return $this->tgl_verifikasi;
+    }
+
+    public function getTglAccDpAttribute(): ?Carbon
+    {
+        return $this->tgl_verifikasi_dp ?? $this->tgl_bayar_dp;
     }
 
     public function getKodeUnikAttribute(): string

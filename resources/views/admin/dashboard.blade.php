@@ -324,7 +324,14 @@
                                 {{ $booking->nama_client }}
                             </td>
                             <td class="px-4 py-3.5 text-xs font-medium text-gray-700">{{ is_object($booking->jenis_layanan) ? $booking->jenis_layanan->label() : ($booking->tarifLayanan?->jenis_layanan ?? $booking->jenis_layanan) }}</td>
-                            <td class="px-4 py-3.5 text-xs text-center"><span class="font-bold text-primary-700 whitespace-nowrap bg-primary-50 border border-primary-100 rounded px-2.5 py-1">{{ $booking->tanggal_survey ? $booking->tanggal_survey->format('d M Y') : '-' }}</span></td>
+                            <td class="px-4 py-3.5 text-xs text-center">
+                                <span class="font-bold text-primary-700 whitespace-nowrap bg-primary-50 border border-primary-100 rounded px-2.5 py-1">{{ $booking->tanggal_survey ? $booking->tanggal_survey->format('d M Y') : '-' }}</span>
+                                @if ($booking->tgl_verifikasi)
+                                    <span class="text-[10px] text-emerald-700 font-semibold block mt-1" title="Tanggal & Jam Di-ACC Admin">
+                                        ACC: {{ \Carbon\Carbon::parse($booking->tgl_verifikasi)->format('d/m/Y H:i') }}
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5 text-right font-bold text-gray-900 whitespace-nowrap">Rp {{ number_format($booking->nominal, 0, ',', '.') }}</td>
                             <td class="px-4 py-3.5 text-center whitespace-nowrap">
                                 <span class="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-700 ring-1 ring-inset ring-yellow-600/20">
@@ -336,6 +343,12 @@
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                                         DP Lunas
                                     </span>
+                                    @php $accDp = $booking->tgl_verifikasi_dp ?? $booking->tgl_bayar_dp; @endphp
+                                    @if ($accDp)
+                                        <span class="text-[9.5px] text-emerald-700 font-bold block mt-0.5">
+                                            {{ \Carbon\Carbon::parse($accDp)->format('d/m/Y H:i') }}
+                                        </span>
+                                    @endif
                                 @elseif ($booking->wajib_dp && $booking->status_dp === 'Menunggu Verifikasi')
                                     <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
                                         Verifikasi DP

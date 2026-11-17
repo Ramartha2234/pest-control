@@ -339,10 +339,10 @@ test('alur 4 & aturan teknis: teknisi upload kehadiran survei, re-upload jika di
         'id_tarif' => $this->tarif->id_tarif,
         'jenis_properti' => 'Rumah Tinggal',
         'ukuran_area' => 100,
-        'tgl_survei_diminta' => now()->addDay()->format('Y-m-d'),
+        'tgl_survei_diminta' => now()->format('Y-m-d'),
         'jam_survei_diminta' => '09:00',
     ]);
-    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->addDay()->format('Y-m-d'), '09:00');
+    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->format('Y-m-d'), '09:00');
 
     // 1. Teknisi upload foto survei pertama
     $file1 = UploadedFile::fake()->image('survei_blur.jpg');
@@ -398,10 +398,10 @@ test('alur 5: teknisi input hasil survei dan harga kesepakatan -> admin verifika
         'id_tarif' => $this->tarif->id_tarif,
         'jenis_properti' => 'Rumah Tinggal',
         'ukuran_area' => 100,
-        'tgl_survei_diminta' => now()->addDay()->format('Y-m-d'),
+        'tgl_survei_diminta' => now()->format('Y-m-d'),
         'jam_survei_diminta' => '09:00',
     ]);
-    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->addDay()->format('Y-m-d'), '09:00');
+    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->format('Y-m-d'), '09:00');
 
     // Prasyarat tahap: bukti survei telah disetujui admin
     $buktiSurvei = $service->submitBuktiKehadiranSurvei($pemesanan, $this->teknisi1->id_pengguna, 'kehadiran/survei.jpg');
@@ -440,10 +440,10 @@ test('alur 6: admin bisa ubah jadwal survei dan tanggal pengerjaan kapan saja', 
         'id_tarif' => $this->tarif->id_tarif,
         'jenis_properti' => 'Rumah Tinggal',
         'ukuran_area' => 100,
-        'tgl_survei_diminta' => now()->addDay()->format('Y-m-d'),
+        'tgl_survei_diminta' => now()->format('Y-m-d'),
         'jam_survei_diminta' => '09:00',
     ]);
-    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->addDay()->format('Y-m-d'), '09:00');
+    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->format('Y-m-d'), '09:00');
 
     $this->actingAs($this->admin)->post(route('admin.pemesanan.ubah-jadwal', $pemesanan->id_pemesanan), [
         'tgl_survei' => now()->addDays(5)->format('Y-m-d'),
@@ -469,15 +469,15 @@ test('alur 7: teknisi upload kehadiran pengerjaan -> admin approve -> status_pen
         'id_tarif' => $this->tarif->id_tarif,
         'jenis_properti' => 'Rumah Tinggal',
         'ukuran_area' => 100,
-        'tgl_survei_diminta' => now()->addDay()->format('Y-m-d'),
+        'tgl_survei_diminta' => now()->format('Y-m-d'),
         'jam_survei_diminta' => '09:00',
     ]);
-    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->addDay()->format('Y-m-d'), '09:00');
+    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->format('Y-m-d'), '09:00');
 
     // Prasyarat tahap: bukti survei dan hasil survei telah disetujui admin
     $buktiSurvei = $service->submitBuktiKehadiranSurvei($pemesanan, $this->teknisi1->id_pengguna, 'kehadiran/survei.jpg');
     $service->verifikasiBuktiKehadiran($buktiSurvei, $this->admin->id_pengguna, true);
-    $hasilSurvei = $service->submitHasilSurvei($pemesanan, $this->teknisi1->id_pengguna, now()->addDays(2)->toDateString(), '09:00', 1500000);
+    $hasilSurvei = $service->submitHasilSurvei($pemesanan, $this->teknisi1->id_pengguna, now()->toDateString(), '09:00', 1500000);
     $service->verifikasiHasilSurvei($hasilSurvei, $this->admin->id_pengguna, true);
 
     expect($pemesanan->status_pengerjaan)->toBe('Pending');
@@ -514,10 +514,47 @@ test('alur 8: selesai kerja, teknisi upload WO dan bukti pembayaran, ketika KEDU
         'id_tarif' => $this->tarif->id_tarif,
         'jenis_properti' => 'Rumah Tinggal',
         'ukuran_area' => 100,
-        'tgl_survei_diminta' => now()->addDay()->format('Y-m-d'),
+        'tgl_survei_diminta' => now()->format('Y-m-d'),
         'jam_survei_diminta' => '09:00',
     ]);
-    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->addDay()->format('Y-m-d'), '09:00');
+    $service->verifikasiDanTugaskan($pemesanan, $this->admin->id_pengguna, $this->teknisi1->id_pengguna, now()->format('Y-m-d'), '09:00');
+
+    // Lengkapi alur prasyarat: survei disetujui, hasil survei disetujui, jadwal treatment hari ini, kehadiran pengerjaan
+    BuktiKehadiran::create([
+        'id_pemesanan' => $pemesanan->id_pemesanan,
+        'id_teknisi' => $this->teknisi1->id_pengguna,
+        'id_admin' => $this->admin->id_pengguna,
+        'jenis_kehadiran' => 'Survei',
+        'foto' => 'private/kehadiran/survei.jpg',
+        'status_verifikasi' => 'Disetujui',
+        'tgl_verifikasi' => now(),
+    ]);
+
+    HasilSurvei::create([
+        'id_pemesanan' => $pemesanan->id_pemesanan,
+        'id_teknisi' => $this->teknisi1->id_pengguna,
+        'id_admin' => $this->admin->id_pengguna,
+        'tgl_pengerjaan_diajukan' => now()->toDateString(),
+        'jam_pengerjaan_diajukan' => '09:00',
+        'harga_diajukan' => 1500000,
+        'status_verifikasi' => 'Disetujui',
+        'tgl_verifikasi' => now(),
+    ]);
+
+    $pemesanan->jadwalPenugasan()->update([
+        'tgl_pengerjaan' => now()->toDateString(),
+        'jam_pengerjaan' => '09:00:00',
+    ]);
+
+    BuktiKehadiran::create([
+        'id_pemesanan' => $pemesanan->id_pemesanan,
+        'id_teknisi' => $this->teknisi1->id_pengguna,
+        'id_admin' => $this->admin->id_pengguna,
+        'jenis_kehadiran' => 'Pengerjaan',
+        'foto' => 'private/kehadiran/pengerjaan.jpg',
+        'status_verifikasi' => 'Disetujui',
+        'tgl_verifikasi' => now(),
+    ]);
 
     // Set kondisi sedang On-Going
     $pemesanan->update(['status_pengerjaan' => 'On-Going', 'status_pembayaran' => 'Belum Lunas']);
