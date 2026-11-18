@@ -27,15 +27,12 @@
     {{-- Banner Notifikasi: Perlu Tindakan (Jika ada pengajuan ditolak admin) --}}
     @if ($countPerluTindakan > 0)
         <div class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 shadow-sm animate-pulse">
-            <div>
-                <h3 class="text-sm font-black text-rose-900">Perhatian: Ada {{ $countPerluTindakan }} Pengajuan Ditolak!</h3>
-                    <p class="text-xs text-rose-700 mt-0.5">Admin menolak bukti foto / hasil survei / dokumen WO / bukti bayar. Harap segera periksa dan unggah ulang.</p>
-                    <div class="mt-2.5">
-                        <a href="{{ route('teknisi.tugas') }}" class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-rose-700 transition">
-                            Lihat Tugas yang Ditolak &rarr;
-                        </a>
-                    </div>
-                </div>
+            <h3 class="text-sm font-black text-rose-900">Perhatian: Ada {{ $countPerluTindakan }} Pengajuan Ditolak!</h3>
+            <p class="text-xs text-rose-700 mt-0.5">Admin menolak bukti foto / hasil survei / dokumen WO / bukti bayar. Harap segera periksa dan unggah ulang.</p>
+            <div class="mt-2.5">
+                <a href="{{ route('teknisi.tugas') }}" class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-rose-700 transition">
+                    Lihat Tugas yang Ditolak &rarr;
+                </a>
             </div>
         </div>
     @endif

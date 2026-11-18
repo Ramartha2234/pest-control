@@ -47,7 +47,7 @@
                 {{ $counts['pending_verifikasi'] + array_sum($pendingVerifications) }} Perlu Tindakan
             </span>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {{-- Pemesanan Baru --}}
             <a href="{{ route('admin.pemesanan.index', ['status' => 'Pending']) }}" class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm hover:shadow-md transition block">
                 <span class="text-[11px] font-bold text-amber-800 uppercase block">Pesanan Baru</span>
@@ -56,32 +56,39 @@
             </a>
 
             {{-- Kehadiran --}}
-            <div class="rounded-xl border border-gray-150 bg-white p-4 shadow-sm hover:shadow-md transition">
+            <a href="#panel-verifikasi-bukti" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-cyan-300 hover:shadow-md transition block">
                 <span class="text-[11px] font-bold text-gray-500 uppercase block">Foto Kehadiran</span>
                 <span class="text-2xl font-black text-gray-900 mt-1 block">{{ $pendingVerifications['kehadiran'] }}</span>
                 <span class="text-[10px] text-gray-400 mt-0.5 block">Survei & Pengerjaan</span>
-            </div>
+            </a>
 
             {{-- Hasil Survei --}}
-            <div class="rounded-xl border border-gray-150 bg-white p-4 shadow-sm hover:shadow-md transition">
+            <a href="#panel-verifikasi-bukti" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow-md transition block">
                 <span class="text-[11px] font-bold text-gray-500 uppercase block">Hasil Survei</span>
                 <span class="text-2xl font-black text-gray-900 mt-1 block">{{ $pendingVerifications['hasil_survei'] }}</span>
                 <span class="text-[10px] text-gray-400 mt-0.5 block">Nego harga & tanggal</span>
-            </div>
+            </a>
 
             {{-- Work Order --}}
-            <div class="rounded-xl border border-gray-150 bg-white p-4 shadow-sm hover:shadow-md transition">
+            <a href="#panel-verifikasi-bukti" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-purple-300 hover:shadow-md transition block">
                 <span class="text-[11px] font-bold text-gray-500 uppercase block">Work Order (WO)</span>
                 <span class="text-2xl font-black text-gray-900 mt-1 block">{{ $pendingVerifications['work_order'] }}</span>
                 <span class="text-[10px] text-gray-400 mt-0.5 block">Laporan pengerjaan</span>
-            </div>
+            </a>
 
             {{-- Bukti Pembayaran --}}
-            <div class="rounded-xl border border-gray-150 bg-white p-4 shadow-sm hover:shadow-md transition col-span-2 md:col-span-1">
+            <a href="#panel-verifikasi-bukti" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-emerald-300 hover:shadow-md transition block">
                 <span class="text-[11px] font-bold text-gray-500 uppercase block">Bukti Pembayaran</span>
                 <span class="text-2xl font-black text-gray-900 mt-1 block">{{ $pendingVerifications['pembayaran'] }}</span>
                 <span class="text-[10px] text-gray-400 mt-0.5 block">Verifikasi mutasi/lunas</span>
-            </div>
+            </a>
+
+            {{-- Bukti DP --}}
+            <a href="#panel-verifikasi-bukti" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-amber-300 hover:shadow-md transition block">
+                <span class="text-[11px] font-bold text-gray-500 uppercase block">Bukti DP (10%)</span>
+                <span class="text-2xl font-black text-gray-900 mt-1 block">{{ $pendingVerifications['dp'] }}</span>
+                <span class="text-[10px] text-gray-400 mt-0.5 block">Verifikasi DP awal</span>
+            </a>
         </div>
     </div>
 
@@ -133,6 +140,172 @@
                 </div>
                 <div class="h-3 w-3 rounded-full bg-rose-500 ring-4 ring-rose-100" title="Dibatalkan"></div>
             </div>
+        </div>
+    </div>
+
+    {{-- Panel Khusus: Pekerjaan Berlangsung Hari Ini --}}
+    <div id="panel-pekerjaan-hari-ini" class="rounded-2xl border border-emerald-200 bg-white p-6 shadow-md mb-8">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4 gap-3">
+            <div class="flex items-center gap-2.5">
+                <span class="relative flex h-2.5 w-2.5 shrink-0">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <div>
+                    <h3 class="font-bold text-gray-900 text-sm uppercase tracking-wider">
+                        Pekerjaan Berlangsung Hari Ini ({{ $todayDate->translatedFormat('d F Y') }})
+                    </h3>
+                    <p class="text-[11px] text-gray-500 mt-0.5">
+                        Daftar survei dan pengerjaan yang dijadwalkan hari ini atau sedang berlangsung aktif di lapangan.
+                    </p>
+                </div>
+            </div>
+            <span class="text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap">
+                {{ $todayBookings->count() }} Pekerjaan
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-500">
+                <thead class="text-xs text-gray-400 uppercase bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Kode Unik</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Pelanggan</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Layanan</th>
+                        <th class="px-4 py-3 text-center whitespace-nowrap text-emerald-700">Tipe & Jam</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Teknisi</th>
+                        <th class="px-4 py-3 text-center whitespace-nowrap">Status Kerja</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($todayBookings as $booking)
+                        @php
+                            $isPengerjaanHariIni = $booking->status_pengerjaan === 'On-Going' || $booking->jadwalPenugasan?->tgl_pengerjaan !== null;
+                            $jamRaw = $isPengerjaanHariIni
+                                ? $booking->jadwalPenugasan?->jam_pengerjaan
+                                : $booking->jadwalPenugasan?->jam_survei;
+                            $jamTampil = $jamRaw ? substr((string) $jamRaw, 0, 5) . ' WITA' : '-';
+                            $rawStatus = is_object($booking->status_pengerjaan) ? $booking->status_pengerjaan->value : strtolower((string) $booking->status_pengerjaan);
+                            $lblStatus = is_object($booking->status_pengerjaan) ? $booking->status_pengerjaan->label() : $booking->status_pengerjaan;
+                            $statusColor = match ($rawStatus) {
+                                'pending' => 'bg-yellow-50 text-yellow-700 ring-yellow-600/20',
+                                'ongoing', 'on-going' => 'bg-blue-50 text-blue-700 ring-blue-600/20',
+                                'done' => 'bg-green-50 text-green-700 ring-green-600/20',
+                                'cancel' => 'bg-red-50 text-red-700 ring-red-600/20',
+                                default => 'bg-gray-50 text-gray-700 ring-gray-600/20',
+                            };
+                        @endphp
+                        <tr class="hover:bg-gray-50/50">
+                            <td class="px-4 py-3.5 font-bold font-mono text-gray-900 whitespace-nowrap">{{ $booking->kode_unik }}</td>
+                            <td class="px-4 py-3.5 font-semibold text-gray-900">{{ $booking->nama_client }}</td>
+                            <td class="px-4 py-3.5 text-xs font-medium text-gray-700">{{ is_object($booking->jenis_layanan) ? $booking->jenis_layanan->label() : ($booking->tarifLayanan?->jenis_layanan ?? $booking->jenis_layanan) }}</td>
+                            <td class="px-4 py-3.5 text-xs text-center whitespace-nowrap">
+                                @if ($isPengerjaanHariIni)
+                                    <span class="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2.5 py-1">
+                                        Pengerjaan &bull; {{ $jamTampil }}
+                                    </span>
+                                @else
+                                    <span class="font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2.5 py-1">
+                                        Survei &bull; {{ $jamTampil }}
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3.5 text-xs font-semibold text-primary-700 whitespace-nowrap">
+                                {{ $booking->teknisi ? $booking->teknisi->nama : 'Belum Ditugaskan' }}
+                            </td>
+                            <td class="px-4 py-3.5 text-center whitespace-nowrap">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset {{ $statusColor }}">
+                                    {{ $lblStatus }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                                <a href="{{ route('admin.pemesanan.show', $booking->id) }}" class="rounded bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-600 hover:text-white">
+                                    Detail / Pantau
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-6 text-gray-400">Tidak ada pekerjaan survei atau pengerjaan yang berlangsung hari ini.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{-- Panel Khusus: Verifikasi Bukti Kehadiran, Hasil Survei, WO, Pembayaran & DP --}}
+    <div id="panel-verifikasi-bukti" class="rounded-2xl border border-amber-200 bg-white p-6 shadow-md mb-8">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4 gap-3">
+            <div>
+                <h3 class="font-bold text-gray-900 text-sm uppercase tracking-wider">
+                    Verifikasi Bukti Kehadiran, WO, Pembayaran & DP
+                </h3>
+                <p class="text-[11px] text-gray-500 mt-0.5">
+                    Antrean bukti kehadiran survei/pengerjaan, hasil survei, work order (WO), pelunasan, dan DP yang menunggu persetujuan admin.
+                </p>
+            </div>
+            <span class="text-xs {{ $verificationQueue->count() > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }} border px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap">
+                {{ $verificationQueue->count() }} Menunggu
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-500">
+                <thead class="text-xs text-gray-400 uppercase bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Kode Unik</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Jenis Verifikasi</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Pelanggan & Layanan</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Pengirim</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Keterangan</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Waktu Unggah</th>
+                        <th class="px-4 py-3 text-right whitespace-nowrap">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($verificationQueue as $item)
+                        <tr class="hover:bg-amber-50/30 transition">
+                            <td class="px-4 py-3.5 font-bold font-mono text-gray-900 whitespace-nowrap">{{ $item['kode_pemesanan'] }}</td>
+                            <td class="px-4 py-3.5 whitespace-nowrap">
+                                <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold {{ $item['badge_class'] }}">
+                                    {{ $item['kategori'] }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5">
+                                <span class="font-semibold text-gray-900 block">{{ $item['pelanggan'] }}</span>
+                                <span class="text-[11px] text-gray-500 block">{{ $item['layanan'] }}</span>
+                            </td>
+                            <td class="px-4 py-3.5 text-xs font-semibold text-gray-700 whitespace-nowrap">
+                                {{ $item['pengirim'] }}
+                            </td>
+                            <td class="px-4 py-3.5 text-xs text-gray-600 max-w-xs truncate" title="{{ $item['keterangan'] }}">
+                                {{ $item['keterangan'] }}
+                            </td>
+                            <td class="px-4 py-3.5 text-xs text-gray-500 whitespace-nowrap">
+                                @if ($item['waktu'])
+                                    <span class="font-semibold text-gray-700 block">{{ $item['waktu']->format('d M Y, H:i') }}</span>
+                                    <span class="text-[10px] text-gray-400">{{ $item['waktu']->diffForHumans() }}</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                                <a href="{{ route('admin.pemesanan.show', $item['id_pemesanan']) }}" class="rounded bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-600 hover:text-white hover:border-amber-600">
+                                    Verifikasi &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-6 text-gray-400">
+                                Tidak ada bukti kehadiran, hasil survei, WO, pembayaran, atau DP yang menunggu verifikasi.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -293,13 +466,15 @@
         </div>
     </div>
 
-    {{-- Jadwal Survey / Belum Survey --}}
+    {{-- Jadwal Survey --}}
     <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-md mb-8">
         <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
             <h3 class="font-bold text-gray-900 text-sm uppercase tracking-wider">
-                Jadwal Survey / Belum Survey
+                Jadwal Survey
             </h3>
-            <span class="text-xs bg-primary-50 text-primary-800 border border-primary-200 px-2.5 py-0.5 rounded-full font-semibold">Menunggu Survey</span>
+            <span class="text-xs bg-primary-50 text-primary-800 border border-primary-200 px-2.5 py-0.5 rounded-full font-semibold">
+                {{ $surveyBookings->count() }} Menunggu Survey
+            </span>
         </div>
 
         <div class="overflow-x-auto">
@@ -381,10 +556,10 @@
 
 
 
-    {{-- Scheduled Treatments --}}
+    {{-- Jadwal Pengerjaan --}}
     <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-md mt-8">
         <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
-            <h3 class="font-bold text-gray-900 text-sm uppercase tracking-wider">Jadwal Pengerjaan / Treatment</h3>
+            <h3 class="font-bold text-gray-900 text-sm uppercase tracking-wider">Jadwal Pengerjaan</h3>
             <a href="{{ route('admin.pemesanan.index') }}" class="text-xs font-semibold text-primary-600 hover:text-primary-800 transition">
                 Lihat Semua &rarr;
             </a>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\BuktiKehadiran;
+use App\Models\HasilSurvei;
 use App\Models\JadwalPenugasan;
 use App\Models\Pelanggan;
 use App\Models\Pemesanan;
@@ -405,4 +406,118 @@ test('6. teknisi dapat memperbarui kontak dan mengubah password akun', function 
         ->assertSessionHas('success');
 
     expect(Hash::check('newpassword456', $this->teknisi->fresh()->password))->toBeTrue();
+});
+
+test('7. tugas yang sudah selesai survei atau selesai pengerjaan dihapus dari daftar jadwal hari ini teknisi', function () {
+    $today = now()->toDateString();
+
+    // 1. Survei hari ini BELUM selesai -> HARUS muncul di Jadwal Hari Ini
+    $surveiAktif = Pemesanan::create([
+        'id_pelanggan' => $this->pelanggan->id_pelanggan,
+        'id_tarif' => $this->tarif->id_tarif,
+        'kode_pemesanan' => 'AMB-SRV-AKTIF',
+        'alamat_lokasi' => 'Jl. Mawar 1',
+        'keluhan' => 'Rayap',
+        'harga_estimasi' => 1500000,
+        'status_pengerjaan' => 'Pending',
+        'status_pembayaran' => 'Belum Lunas',
+        'tgl_pemesanan' => now(),
+        'tgl_verifikasi' => now(),
+        'batas_konfirmasi' => now()->addDays(3),
+    ]);
+    JadwalPenugasan::create([
+        'id_pemesanan' => $surveiAktif->id_pemesanan,
+        'id_teknisi' => $this->teknisi->id_pengguna,
+        'tgl_survei' => $today,
+        'jam_survei' => '09:00',
+    ]);
+
+    // 2. Survei hari ini SUDAH selesai & treatment dijadwalkan besok -> TIDAK boleh muncul di Jadwal Hari Ini
+    $surveiSelesai = Pemesanan::create([
+        'id_pelanggan' => $this->pelanggan->id_pelanggan,
+        'id_tarif' => $this->tarif->id_tarif,
+        'kode_pemesanan' => 'AMB-SRV-DONE',
+        'alamat_lokasi' => 'Jl. Mawar 2',
+        'keluhan' => 'Rayap',
+        'harga_estimasi' => 2500000,
+        'harga_final' => 2500000,
+        'status_pengerjaan' => 'Pending',
+        'status_pembayaran' => 'Belum Lunas',
+        'tgl_pemesanan' => now()->subDay(),
+        'tgl_verifikasi' => now()->subDay(),
+        'batas_konfirmasi' => now()->addDays(2),
+    ]);
+    JadwalPenugasan::create([
+        'id_pemesanan' => $surveiSelesai->id_pemesanan,
+        'id_teknisi' => $this->teknisi->id_pengguna,
+        'tgl_survei' => $today,
+        'jam_survei' => '09:00',
+        'tgl_pengerjaan' => now()->addDay()->toDateString(),
+        'jam_pengerjaan' => '10:00',
+    ]);
+    HasilSurvei::create([
+        'id_pemesanan' => $surveiSelesai->id_pemesanan,
+        'id_teknisi' => $this->teknisi->id_pengguna,
+        'tgl_pengerjaan_diajukan' => now()->addDay()->toDateString(),
+        'jam_pengerjaan_diajukan' => '10:00',
+        'harga_diajukan' => 2500000,
+        'status_verifikasi' => 'Disetujui',
+    ]);
+
+    // 3. Pengerjaan hari ini BELUM selesai (On-Going) -> HARUS muncul di Jadwal Hari Ini
+    $kerjaAktif = Pemesanan::create([
+        'id_pelanggan' => $this->pelanggan->id_pelanggan,
+        'id_tarif' => $this->tarif->id_tarif,
+        'kode_pemesanan' => 'AMB-KRJ-AKTIF',
+        'alamat_lokasi' => 'Jl. Mawar 3',
+        'keluhan' => 'Tikus',
+        'harga_estimasi' => 3000000,
+        'status_pengerjaan' => 'On-Going',
+        'status_pembayaran' => 'Belum Lunas',
+        'tgl_pemesanan' => now()->subDays(2),
+        'tgl_verifikasi' => now()->subDays(2),
+        'batas_konfirmasi' => now()->addDay(),
+    ]);
+    JadwalPenugasan::create([
+        'id_pemesanan' => $kerjaAktif->id_pemesanan,
+        'id_teknisi' => $this->teknisi->id_pengguna,
+        'tgl_survei' => now()->subDay()->toDateString(),
+        'jam_survei' => '09:00',
+        'tgl_pengerjaan' => $today,
+        'jam_pengerjaan' => '13:00',
+    ]);
+
+    // 4. Pengerjaan hari ini SUDAH Done -> TIDAK boleh muncul di Jadwal Hari Ini
+    $kerjaSelesai = Pemesanan::create([
+        'id_pelanggan' => $this->pelanggan->id_pelanggan,
+        'id_tarif' => $this->tarif->id_tarif,
+        'kode_pemesanan' => 'AMB-KRJ-DONE',
+        'alamat_lokasi' => 'Jl. Mawar 4',
+        'keluhan' => 'Kecoa',
+        'harga_estimasi' => 2000000,
+        'status_pengerjaan' => 'Done',
+        'status_pembayaran' => 'Lunas',
+        'tgl_pemesanan' => now()->subDays(3),
+        'tgl_verifikasi' => now()->subDays(3),
+        'tgl_selesai' => now(),
+        'batas_konfirmasi' => now(),
+    ]);
+    JadwalPenugasan::create([
+        'id_pemesanan' => $kerjaSelesai->id_pemesanan,
+        'id_teknisi' => $this->teknisi->id_pengguna,
+        'tgl_survei' => now()->subDays(2)->toDateString(),
+        'jam_survei' => '09:00',
+        'tgl_pengerjaan' => $today,
+        'jam_pengerjaan' => '10:00',
+    ]);
+
+    $response = $this->actingAs($this->teknisi)->get(route('teknisi.dashboard'));
+    $response->assertSuccessful();
+
+    $hariIniCodes = $response->viewData('tugasHariIni')->pluck('kode_pemesanan')->all();
+
+    expect($hariIniCodes)->toContain('AMB-SRV-AKTIF', 'AMB-KRJ-AKTIF')
+        ->not->toContain('AMB-SRV-DONE')
+        ->not->toContain('AMB-KRJ-DONE')
+        ->and($response->viewData('countHariIni'))->toBe(2);
 });

@@ -32,17 +32,24 @@ class TeknisiPemesananController extends Controller
             ->with(['pelanggan', 'tarifLayanan', 'jadwalPenugasan', 'hasilSurveis', 'buktiKehadirans', 'workOrders', 'buktiPembayarans'])
             ->get();
 
-        // 1. Tugas hari ini (Survei hari ini ATAU Pengerjaan hari ini)
-        $tugasHariIni = $activeOrders->filter(function ($p) use ($today) {
+        // 1. Tugas hari ini (Survei hari ini yang belum selesai ATAU Pengerjaan hari ini yang belum selesai)
+        $tugasHariIni = $activeOrders->filter(function (Pemesanan $p) use ($today): bool {
             $jadwal = $p->jadwalPenugasan;
             if (! $jadwal) {
                 return false;
             }
+
             $tglSurvei = $jadwal->tgl_survei ? Carbon::parse($jadwal->tgl_survei)->toDateString() : null;
             $tglKerja = $jadwal->tgl_pengerjaan ? Carbon::parse($jadwal->tgl_pengerjaan)->toDateString() : null;
 
-            return $tglSurvei === $today || $tglKerja === $today;
-        });
+            $sudahSelesaiSurvei = $tglKerja !== null
+                || $p->hasilSurveis->contains('status_verifikasi', 'Disetujui');
+
+            $surveiHariIniAktif = $tglSurvei === $today && ! $sudahSelesaiSurvei;
+            $kerjaHariIniAktif = $tglKerja === $today && $p->status_pengerjaan !== 'Done';
+
+            return $surveiHariIniAktif || $kerjaHariIniAktif;
+        })->values();
 
         // 2. Tugas menunggu tindakan teknisi (pengajuan ditolak admin dan perlu diupload ulang)
         $tugasMenungguTindakan = $activeOrders->filter(fn ($p) => $p->perluTindakanTeknisi());
