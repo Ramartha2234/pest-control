@@ -62,15 +62,15 @@
                     <span class="block text-[10px] text-emerald-200">{{ Auth::user()->no_hp ?? 'Teknisi' }}</span>
                 </div>
 
-                <form action="{{ route('logout') }}" method="POST" class="inline">
-                    @csrf
-                    <button type="submit" class="p-2 rounded-lg bg-emerald-900/70 hover:bg-emerald-900 text-emerald-100 transition text-xs font-medium flex items-center gap-1.5" title="Keluar">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        <span class="hidden sm:inline">Keluar</span>
-                    </button>
-                </form>
+                <button type="button"
+                        onclick="openLogoutModal()"
+                        class="p-2 rounded-lg bg-emerald-900/70 hover:bg-emerald-900 text-emerald-100 transition text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                        title="Keluar">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span class="hidden sm:inline">Keluar</span>
+                </button>
             </div>
         </div>
     </header>
@@ -155,6 +155,9 @@
             <span>Profil</span>
         </a>
     </nav>
+
+    {{-- Modal Konfirmasi Logout --}}
+    @include('layouts.logout-modal')
 
     @stack('scripts')
 </body>

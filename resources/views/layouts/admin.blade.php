@@ -70,13 +70,14 @@
                     Buka Halaman Publik
                 </a>
 
-                <form action="{{ route('logout') }}" method="POST" class="w-full">
-                    @csrf
-                    <button type="submit"
-                            class="flex items-center w-full px-4 py-2.5 rounded-xl text-xs font-bold text-rose-200 bg-rose-950/60 hover:bg-rose-900/80 hover:text-white border border-rose-800/60 shadow-sm transition">
-                        Keluar (Logout)
-                    </button>
-                </form>
+                <button type="button"
+                        onclick="openLogoutModal()"
+                        class="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-xs font-bold text-rose-200 bg-rose-950/60 hover:bg-rose-900/80 hover:text-white border border-rose-800/60 shadow-sm transition cursor-pointer">
+                    <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Keluar (Logout)</span>
+                </button>
             </div>
         </nav>
     </aside>
@@ -122,6 +123,9 @@
             @yield('content')
         </main>
     </div>
+
+    {{-- Modal Konfirmasi Logout --}}
+    @include('layouts.logout-modal')
 
     {{-- Menu Toggle Script --}}
     <script>
